@@ -7,7 +7,6 @@ import {
   Grid,
   Button,
   Card,
-  CardContent,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -51,11 +50,7 @@ export default function QuanLy() {
   const [selectedFunction, setSelectedFunction] = useState('');
   const navigate = useNavigate();
 
-<<<<<<< HEAD
-  const handleChange = (event, newValue) => {
-=======
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
->>>>>>> e8f327fbdff0783522107a27b2a68ead4bdd32d1
     const isQuanTriTab = loginRole === 'admin' && newValue === tabs.length - 1;
     if (isQuanTriTab) {
       navigate('/admin');
@@ -64,11 +59,7 @@ export default function QuanLy() {
     }
   };
 
-<<<<<<< HEAD
-  const handleFunctionSelect = (code) => {
-=======
   const handleFunctionSelect = (code: string) => {
->>>>>>> e8f327fbdff0783522107a27b2a68ead4bdd32d1
     if (code === 'ADMIN') {
       navigate('/admin');
     } else {

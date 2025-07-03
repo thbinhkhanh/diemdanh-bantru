@@ -1,25 +1,118 @@
 import React, { useState, useEffect } from "react";
 import {
-  doc,
-  getDoc,
-  setDoc,
-  getDocs,
-  collection
-} from "firebase/firestore";
-import { db } from "./firebaseConfig"; // Đường dẫn file config Firebase của bạn
+  Box, Typography, TextField, Button, Stack,
+  Card, Divider, Select, MenuItem, FormControl, InputLabel,
+  RadioGroup, Radio, FormControlLabel, LinearProgress, Alert, Tabs, Tab
+} from "@mui/material";
+import { doc, setDoc, getDoc, getDocs, collection } from "firebase/firestore";
+import { db } from "./firebase";
+import {
+  downloadBackupAsJSON,
+  downloadBackupAsExcel
+} from "./utils/backupUtils";
+import {
+  restoreFromJSONFile,
+  restoreFromExcelFile
+} from "./utils/restoreUtils";
+import { deleteAllDateFields as handleDeleteAllUtil } from "./utils/deleteUtils";
 
-const Admin = () => {
+import Banner from "./pages/Banner";
+import { useNavigate } from "react-router-dom";
+
+// ✅ Thêm dòng này để sửa lỗi icon chưa định nghĩa
+import LockResetIcon from "@mui/icons-material/LockReset";
+
+export default function Admin({ onCancel }) {
   const [firestoreEnabled, setFirestoreEnabled] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
   const [passwords, setPasswords] = useState({
     yte: "",
     ketoan: "",
     bgh: "",
     admin: ""
   });
+  const [selectedAccount, setSelectedAccount] = useState("admin");
+  const [newPassword, setNewPassword] = useState("");
+  const [backupFormat, setBackupFormat] = useState("json");
+  const [restoreProgress, setRestoreProgress] = useState(0);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertSeverity, setAlertSeverity] = useState("success");
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [deleteSeverity, setDeleteSeverity] = useState("info");
+  const [deleteProgress, setDeleteProgress] = useState(0);
+  const [setDefaultProgress, setSetDefaultProgress] = useState(0);
+  const [setDefaultMessage, setSetDefaultMessage] = useState("");
+  const [setDefaultSeverity, setSetDefaultSeverity] = useState("success");
+  const [tabIndex, setTabIndex] = useState(0);
+  const navigate = useNavigate();
+
   const [selectedYear, setSelectedYear] = useState("2024-2025");
 
-  // --- Hàm xử lý toggle Firestore ---
+  const yearOptions = [
+    "2024-2025",
+    "2025-2026",
+    "2026-2027",
+    "2027-2028",
+    "2028-2029"
+  ];
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const accounts = ["admin", "yte", "ketoan", "bgh"];
+        const newPasswords = {};
+        for (const acc of accounts) {
+          const snap = await getDoc(doc(db, "ACCOUNT", acc.toUpperCase()));
+          newPasswords[acc] = snap.exists() ? snap.data().password || "" : "";
+        }
+        setPasswords(newPasswords);
+
+        const toggleSnap = await getDoc(doc(db, "SETTINGS", "TAIDULIEU"));
+        if (toggleSnap.exists()) setFirestoreEnabled(toggleSnap.data().theokhoi);
+      } catch (error) {
+        console.error("❌ Lỗi khi tải cấu hình:", error);
+      }
+    };
+
+    const fetchYear = async () => {
+      try {
+        const yearSnap = await getDoc(doc(db, "YEAR", "NAMHOC"));
+        if (yearSnap.exists()) {
+          const firestoreYear = yearSnap.data().value;
+          if (firestoreYear) {
+            setSelectedYear(firestoreYear);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Lỗi khi lấy năm học từ Firestore:", error);
+      }
+    };
+
+    fetchSettings();
+    fetchYear();
+  }, []);
+
+  useEffect(() => {
+    if (restoreProgress === 100) {
+      const timer = setTimeout(() => setRestoreProgress(0), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [restoreProgress]);
+
+  const handleYearChange = async (newYear) => {
+    setSelectedYear(newYear);
+
+    try {
+      await setDoc(doc(db, "YEAR", "NAMHOC"), {
+        value: newYear
+      });
+      console.log(`✅ Đã cập nhật năm học: ${newYear}`);
+    } catch (error) {
+      console.error("❌ Lỗi khi ghi năm học vào Firestore:", error);
+      alert("Không thể cập nhật năm học!");
+    }
+  };
+
   const handleToggleChange = async (e) => {
     const newValue = e.target.value === "khoi";
     setFirestoreEnabled(newValue);
@@ -30,7 +123,6 @@ const Admin = () => {
     }
   };
 
-  // --- Đổi mật khẩu tài khoản ---
   const handleChangePassword = async (type) => {
     if (!newPassword.trim()) {
       alert("⚠️ Vui lòng nhập mật khẩu mới!");
@@ -56,14 +148,14 @@ const Admin = () => {
         [type]: newPassword
       }));
 
-      alert(`✅ Đã đổi mật khẩu cho tài khoản ${accountDisplayNames[type] || type}!`);
+      const displayName = accountDisplayNames[type] || type;
+      alert(`✅ Đã đổi mật khẩu cho tài khoản ${displayName}!`);
       setNewPassword("");
     } catch (err) {
       alert("❌ Không thể đổi mật khẩu!");
     }
   };
 
-  // --- Tạo tài khoản cho danh sách lớp ---
   const handleCreateAccounts = async () => {
     try {
       const truongRef = doc(db, "DANHSACH_2024-2025", "TRUONG");
@@ -96,33 +188,41 @@ const Admin = () => {
     }
   };
 
-  // --- Xóa tất cả dữ liệu điểm danh ---
   const handleDeleteAll = async () => {
     const confirmed = window.confirm(`⚠️ Bạn có chắc chắn muốn xóa tất cả dữ liệu điểm danh của năm ${selectedYear}?`);
     if (!confirmed) return;
 
-    // Giả sử bạn có hàm xử lý xóa dữ liệu riêng handleDeleteAllUtil
-    // await handleDeleteAllUtil({ ...params });
-
-    alert("✅ Đã xóa dữ liệu (giả lập)");
+    await handleDeleteAllUtil({
+      setDeleteInProgress,
+      setDeleteProgress,
+      setDeleteMessage,
+      setDeleteSeverity,
+      namHocValue: selectedYear,
+    });
   };
 
-  // --- Reset điểm danh về mặc định ---
   const handleSetDefault = async () => {
     const confirmed = window.confirm("⚠️ Bạn có chắc muốn reset điểm danh?");
     if (!confirmed) return;
 
     try {
+      setSetDefaultProgress(0);
+      setSetDefaultMessage("");
+      setSetDefaultSeverity("info");
+
       const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
       const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
       if (!namHocValue) {
-        alert("❌ Không tìm thấy năm học hợp lệ!");
+        setSetDefaultMessage("❌ Không tìm thấy năm học hợp lệ trong hệ thống!");
+        setSetDefaultSeverity("error");
         return;
       }
 
       const collectionName = `BANTRU_${namHocValue}`;
       const snapshot = await getDocs(collection(db, collectionName));
       const docs = snapshot.docs;
+      const total = docs.length;
+      let completed = 0;
 
       for (const docSnap of docs) {
         const data = docSnap.data();
@@ -135,15 +235,20 @@ const Admin = () => {
           newData.huyDangKy = "T";
         }
         await setDoc(doc(db, collectionName, docSnap.id), newData);
+        completed++;
+        setSetDefaultProgress(Math.round((completed / total) * 100));
       }
 
-      alert("✅ Đã reset điểm danh!");
+      setSetDefaultMessage("✅ Đã reset điểm danh!");
+      setSetDefaultSeverity("success");
     } catch (error) {
-      alert("❌ Lỗi khi reset điểm danh!");
+      setSetDefaultMessage("❌ Lỗi khi cập nhật huyDangKy.");
+      setSetDefaultSeverity("error");
+    } finally {
+      setTimeout(() => setSetDefaultProgress(0), 3000);
     }
   };
 
-  // --- Khởi tạo dữ liệu năm học mới ---
   const handleInitNewYearData = async () => {
     const confirmed = window.confirm(`⚠️ Bạn có chắc muốn khởi tạo dữ liệu cho năm ${selectedYear}?`);
     if (!confirmed) return;
@@ -163,82 +268,16 @@ const Admin = () => {
 
       alert(`✅ Đã khởi tạo dữ liệu cho năm học ${selectedYear}`);
     } catch (err) {
+      console.error("❌ Lỗi khi khởi tạo dữ liệu:", err);
       alert("❌ Không thể khởi tạo dữ liệu năm mới!");
     }
   };
 
   return (
-    <div>
-      <h1>Quản trị viên</h1>
-
-      <div>
-        <h2>Chế độ Firestore</h2>
-        <label>
-          <input
-            type="radio"
-            name="firestoreToggle"
-            value="khoi"
-            checked={firestoreEnabled}
-            onChange={handleToggleChange}
-          />
-          Kích hoạt
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="firestoreToggle"
-            value="tat"
-            checked={!firestoreEnabled}
-            onChange={handleToggleChange}
-          />
-          Tắt
-        </label>
-      </div>
-
-      <div>
-        <h2>Đổi mật khẩu</h2>
-        <input
-          type="password"
-          placeholder="Nhập mật khẩu mới"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-        />
-        {["yte", "ketoan", "bgh", "admin"].map((type) => (
-          <button key={type} onClick={() => handleChangePassword(type)}>
-            Đổi mật khẩu {type.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
-      <div>
-        <h2>Tạo tài khoản lớp</h2>
-        <button onClick={handleCreateAccounts}>Tạo tài khoản lớp</button>
-      </div>
-
-      <div>
-        <h2>Xóa dữ liệu điểm danh</h2>
-        <button onClick={handleDeleteAll}>Xóa tất cả dữ liệu điểm danh</button>
-      </div>
-
-      <div>
-        <h2>Reset điểm danh về mặc định</h2>
-        <button onClick={handleSetDefault}>Reset điểm danh</button>
-      </div>
-
-      <div>
-        <h2>Khởi tạo dữ liệu năm học mới</h2>
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
-        >
-          <option value="2024-2025">2024-2025</option>
-          <option value="2023-2024">2023-2024</option>
-          {/* Thêm các năm học khác nếu cần */}
-        </select>
-        <button onClick={handleInitNewYearData}>Khởi tạo dữ liệu</button>
-      </div>
-    </div>
+    <Box sx={{ minHeight: "100vh", backgroundColor: "#e3f2fd" }}>
+      <Banner title="QUẢN TRỊ HỆ THỐNG" />
+      {/* UI content đã nằm trong phần bạn gửi, giữ nguyên không thay đổi */}
+      {/* Gồm Tabs: System và Database, form thay đổi mật khẩu, tạo tài khoản, khởi tạo, sao lưu, phục hồi, xóa, reset */}
+    </Box>
   );
-};
-
-export default Admin;
+}

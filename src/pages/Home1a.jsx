@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
-import Banner from "./Banner"; // Giữ nguyên
+import Banner from "../pages/Banner"; // Giữ nguyên
 
 export default function Home() {
   const navigate = useNavigate();

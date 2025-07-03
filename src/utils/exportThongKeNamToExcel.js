@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import * as XLSX from 'xlsx';
-=======
 import * as XLSX from 'sheetjs-style';
->>>>>>> e8f327fbdff0783522107a27b2a68ead4bdd32d1
 
 export function exportThongKeNamToExcel(dataList, selectedYear, selectedClass, monthSet) {
   const title1 = 'TRƯỜNG TIỂU HỌC BÌNH KHÁNH';
