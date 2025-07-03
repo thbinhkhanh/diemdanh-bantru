@@ -1,13 +1,12 @@
 import {
-  collection,
   doc,
   getDoc,
-  getDocs,
   setDoc,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import * as XLSX from "xlsx";
+
 
 /** 🔁 Phục hồi dữ liệu từ file JSON */
 export const restoreFromJSONFile = async (

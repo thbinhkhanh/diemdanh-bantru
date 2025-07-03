@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,6 +6,7 @@ import {
   Link,
   useLocation,
   Navigate,
+  useNavigate
 } from 'react-router-dom';
 
 import {
@@ -27,12 +28,12 @@ import Lop4 from './pages/Lop4';
 import Lop5 from './pages/Lop5';
 import QuanLy from './pages/QuanLy';
 import About from './pages/About';
-import Admin from './Admin';
 import Footer from './pages/Footer';
 import HuongDan from './pages/HuongDan';
-import Login from "./Login";
+import Login from './Login';
 
-// ✅ Component bảo vệ route
+const Admin = lazy(() => import('./Admin'));
+
 function PrivateRoute({ children }) {
   const isLoggedIn = localStorage.getItem("loggedIn") === "true";
   return isLoggedIn ? children : <Navigate to="/login" replace />;
@@ -45,9 +46,10 @@ function App() {
       <div style={{ paddingTop: 0 }}>
         <Routes>
           <Route path="/" element={<Home />} />
+
           <Route path="/login" element={<Login />} />
 
-          {/* ✅ Các route yêu cầu đăng nhập */}
+          {/* Các route yêu cầu đăng nhập */}
           <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
           <Route path="/lop1" element={<PrivateRoute><Lop1 /></PrivateRoute>} />
           <Route path="/lop2" element={<PrivateRoute><Lop2 /></PrivateRoute>} />
@@ -55,9 +57,20 @@ function App() {
           <Route path="/lop4" element={<PrivateRoute><Lop4 /></PrivateRoute>} />
           <Route path="/lop5" element={<PrivateRoute><Lop5 /></PrivateRoute>} />
           <Route path="/quanly" element={<PrivateRoute><QuanLy /></PrivateRoute>} />
-          <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
 
-          {/* ✅ Các trang không cần đăng nhập */}
+          {/* Trang quản lý dùng lazy load */}
+          <Route
+            path="/admin"
+            element={
+              <Suspense fallback={<div>Đang tải trang quản lý...</div>}>
+                <PrivateRoute>
+                  <Admin />
+                </PrivateRoute>
+              </Suspense>
+            }
+          />
+
+          {/* Các trang không cần đăng nhập */}
           <Route path="/gioithieu" element={<About />} />
           <Route path="/huongdan" element={<HuongDan />} />
           <Route path="/chucnang" element={<About />} />
@@ -70,6 +83,7 @@ function App() {
 
 function Navigation() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [selectedYear, setSelectedYear] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
 
@@ -100,6 +114,10 @@ function Navigation() {
     setAnchorEl(null);
   };
 
+  const handleClickQuanLy = () => {
+    navigate('/login'); // ✅ Luôn đi đến trang login
+  };
+
   const navItems = [
     { path: '/home', name: 'Trang chủ' },
     { path: '/lop1', name: 'Lớp 1' },
@@ -107,7 +125,6 @@ function Navigation() {
     { path: '/lop3', name: 'Lớp 3' },
     { path: '/lop4', name: 'Lớp 4' },
     { path: '/lop5', name: 'Lớp 5' },
-    { path: '/login', name: 'Đăng nhập' },
   ];
 
   return (
@@ -164,6 +181,23 @@ function Navigation() {
           </Link>
         ))}
 
+        {/* Nút Quản lý → Luôn đi đến Login */}
+        <Button
+          onClick={handleClickQuanLy}
+          style={{
+            color: 'white',
+            padding: '8px 12px',
+            backgroundColor:
+              location.pathname === '/quanly' ? '#1565c0' : 'transparent',
+            borderBottom:
+              location.pathname === '/quanly' ? '3px solid white' : 'none',
+            borderRadius: '4px',
+            textTransform: 'none',
+          }}
+        >
+          Quản lý
+        </Button>
+
         {/* Dropdown Trợ giúp */}
         <Button
           onClick={handleMenuOpen}
@@ -202,6 +236,7 @@ function Navigation() {
         </Menu>
       </div>
 
+      {/* Góc phải hiển thị năm học */}
       <Box
         sx={{
           display: {

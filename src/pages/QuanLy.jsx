@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Box,
   Tabs,
@@ -7,22 +9,8 @@ import {
   Grid,
   Button,
   Card,
+  CardContent,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-
-// Components chức năng
-import ChotSoLieu from '../ChotSoLieu';
-import SoLieuNgay from '../SoLieuNgay';
-import DieuChinhSuatAn from '../DieuChinhSuatAn';
-import XoaDLNgay from '../XoaDLNgay';
-import ThongkeNgay from '../ThongKeNgay';
-import ThongkeThang from '../ThongKeThang';
-import ThongkeNam from '../ThongKeNam';
-import CapNhatDS from '../CapNhatDS';
-import LapDanhSach from '../LapDanhSach';
-import TaiDanhSach from '../TaiDanhSach';
-import Banner from './Banner';
 
 // Icons
 import LockIcon from '@mui/icons-material/Lock';
@@ -38,56 +26,46 @@ import FileUploadIcon from '@mui/icons-material/FileUpload';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import StorageIcon from '@mui/icons-material/Storage';
 
+// Components
+import ChotSoLieu from '../ChotSoLieu';
+import SoLieuNgay from '../SoLieuNgay';
+import DieuChinhSuatAn from '../DieuChinhSuatAn';
+import XoaDLNgay from '../XoaDLNgay';
+import ThongkeNgay from '../ThongKeNgay';
+import ThongkeThang from '../ThongKeThang';
+import ThongkeNam from '../ThongKeNam';
+import CapNhatDS from '../CapNhatDS';
+import LapDanhSach from '../LapDanhSach';
+import TaiDanhSach from '../TaiDanhSach';
+import Banner from './Banner';
+
 export default function QuanLy() {
-  const loginRole = localStorage.getItem('loginRole');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const loginRole = localStorage.getItem('loginRole')?.toUpperCase();
+  const tabFromLogin = location.state?.tab || '';
 
-  const tabs = [
-    {
-      label: 'DỮ LIỆU',
-      functions: [
-        { code: 'CHOT', label: 'CHỐT SỐ LIỆU', icon: <LockIcon fontSize="large" />, color: '#1976d2' },
-        { code: 'SONGAY', label: 'SỐ LIỆU TRONG NGÀY', icon: <CalendarTodayIcon fontSize="large" />, color: '#388e3c' },
-        { code: 'SUATAN', label: 'ĐIỀU CHỈNH SUẤT ĂN', icon: <PlaylistAddCheckIcon fontSize="large" />, color: '#f57c00' },
-        { code: 'XOANGAY', label: 'XOÁ DỮ LIỆU NGÀY', icon: <DeleteIcon fontSize="large" />, color: '#d32f2f' },
-      ],
-    },
-    {
-      label: 'THỐNG KÊ',
-      functions: [
-        { code: 'TKNGAY', label: 'THỐNG KÊ NGÀY', icon: <BarChartIcon fontSize="large" />, color: '#7b1fa2' },
-        { code: 'TKTHANG', label: 'CHI TIẾT THÁNG', icon: <QueryStatsIcon fontSize="large" />, color: '#0097a7' },
-        { code: 'TKNAM', label: 'TỔNG HỢP NĂM', icon: <TimelineIcon fontSize="large" />, color: '#1976d2' },
-      ],
-    },
-    {
-      label: 'DANH SÁCH',
-      functions: [
-        { code: 'CAPNHAT', label: 'CẬP NHẬT DANH SÁCH', icon: <ManageAccountsIcon fontSize="large" />, color: '#303f9f' },
-        { code: 'LAPDS', label: 'LẬP DANH SÁCH LỚP', icon: <FormatListBulletedIcon fontSize="large" />, color: '#c2185b' },
-        { code: 'TAIDS', label: 'TẢI DANH SÁCH LÊN', icon: <FileUploadIcon fontSize="large" />, color: '#00796b' },
-      ],
-    },
-  ];
-
-  if (loginRole === 'admin') {
-    tabs.push({
-      label: 'QUẢN TRỊ',
-      functions: [
-        { code: 'ADMIN', label: 'TRANG QUẢN TRỊ', icon: <AdminPanelSettingsIcon fontSize="large" />, color: '#512da8' },
-      ],
-    });
-  }
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('loggedIn');
+    const user = localStorage.getItem('loginRole');
+    if (!isLoggedIn || !user) {
+      navigate('/');
+    }
+  }, [navigate]);
 
   const defaultTabIndex =
-    loginRole === 'yte' ? 0 :
-    loginRole === 'ketoan' ? 1 : 2;
+    tabFromLogin === 'dulieu' ? 0 :
+    tabFromLogin === 'thongke' ? 1 :
+    tabFromLogin === 'danhsach' ? 2 :
+    loginRole === 'YTE' ? 0 :
+    loginRole === 'KETOAN' ? 1 :
+    2;
 
   const [tabIndex, setTabIndex] = useState(defaultTabIndex);
   const [selectedFunction, setSelectedFunction] = useState('');
-  const navigate = useNavigate();
 
   const handleChange = (event, newValue) => {
-    const isQuanTriTab = loginRole === 'admin' && newValue === tabs.length - 1;
+    const isQuanTriTab = loginRole === 'ADMIN' && newValue === tabs.length - 1;
     if (isQuanTriTab) {
       navigate('/admin');
     } else {
@@ -119,6 +97,43 @@ export default function QuanLy() {
     }
   };
 
+  const tabs = [
+    {
+      label: 'DỮ LIỆU',
+      functions: [
+        { code: 'CHOT', label: 'CHỐT SỐ LIỆU', icon: <LockIcon fontSize="large" />, color: '#1976d2' },
+        { code: 'SONGAY', label: 'SỐ LIỆU TRONG NGÀY', icon: <CalendarTodayIcon fontSize="large" />, color: '#388e3c' },
+        { code: 'SUATAN', label: 'ĐIỀU CHỈNH SUẤT ĂN', icon: <PlaylistAddCheckIcon fontSize="large" />, color: '#f57c00' },
+        { code: 'XOANGAY', label: 'XOÁ DỮ LIỆU NGÀY', icon: <DeleteIcon fontSize="large" />, color: '#d32f2f' },
+      ],
+    },
+    {
+      label: 'THỐNG KÊ',
+      functions: [
+        { code: 'TKNGAY', label: 'THỐNG KÊ NGÀY', icon: <BarChartIcon fontSize="large" />, color: '#7b1fa2' },
+        { code: 'TKTHANG', label: 'CHI TIẾT THÁNG', icon: <QueryStatsIcon fontSize="large" />, color: '#0097a7' },
+        { code: 'TKNAM', label: 'TỔNG HỢP NĂM', icon: <TimelineIcon fontSize="large" />, color: '#1976d2' },
+      ],
+    },
+    {
+      label: 'DANH SÁCH',
+      functions: [
+        { code: 'CAPNHAT', label: 'CẬP NHẬT DANH SÁCH', icon: <ManageAccountsIcon fontSize="large" />, color: '#303f9f' },
+        { code: 'LAPDS', label: 'LẬP DANH SÁCH LỚP', icon: <FormatListBulletedIcon fontSize="large" />, color: '#c2185b' },
+        { code: 'TAIDS', label: 'TẢI DANH SÁCH LÊN', icon: <FileUploadIcon fontSize="large" />, color: '#00796b' },
+      ],
+    },
+  ];
+
+  if (loginRole === 'ADMIN') {
+    tabs.push({
+      label: 'QUẢN TRỊ',
+      functions: [
+        { code: 'ADMIN', label: 'TRANG QUẢN TRỊ', icon: <AdminPanelSettingsIcon fontSize="large" />, color: '#512da8' },
+      ],
+    });
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: '#d0e4f7' }}>
       <Banner title="HỆ THỐNG QUẢN LÝ" />
@@ -139,7 +154,7 @@ export default function QuanLy() {
                 {tabs.map((tab, index) => (
                   <Tab
                     key={index}
-                    icon={<StorageIcon fontSize="large" />}
+                    icon={index === 0 ? <StorageIcon fontSize="large" /> : tab.functions[0].icon}
                     iconPosition="top"
                     label={
                       <Typography fontWeight={600} sx={{ fontSize: '14px' }}>
