@@ -36,52 +36,10 @@ import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import StorageIcon from '@mui/icons-material/Storage'; // ✅ icon mới
+import StorageIcon from '@mui/icons-material/Storage';
 
 export default function QuanLy() {
   const loginRole = localStorage.getItem('loginRole');
-
-  // Gán tab mặc định dựa vào loginRole
-  const defaultTabIndex =
-    loginRole === 'yte' ? 0 :
-    loginRole === 'ketoan' ? 1 : 2;
-
-  const [tabIndex, setTabIndex] = useState(defaultTabIndex);
-  const [selectedFunction, setSelectedFunction] = useState('');
-  const navigate = useNavigate();
-
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    const isQuanTriTab = loginRole === 'admin' && newValue === tabs.length - 1;
-    if (isQuanTriTab) {
-      navigate('/admin');
-    } else {
-      setTabIndex(newValue);
-    }
-  };
-
-  const handleFunctionSelect = (code: string) => {
-    if (code === 'ADMIN') {
-      navigate('/admin');
-    } else {
-      setSelectedFunction(code);
-    }
-  };
-
-  const renderSelectedFunction = () => {
-    switch (selectedFunction) {
-      case 'CHOT': return <ChotSoLieu onBack={() => setSelectedFunction('')} />;
-      case 'SONGAY': return <SoLieuNgay onBack={() => setSelectedFunction('')} />;
-      case 'SUATAN': return <DieuChinhSuatAn onBack={() => setSelectedFunction('')} />;
-      case 'XOANGAY': return <XoaDLNgay onBack={() => setSelectedFunction('')} />;
-      case 'TKNGAY': return <ThongkeNgay onBack={() => setSelectedFunction('')} />;
-      case 'TKTHANG': return <ThongkeThang onBack={() => setSelectedFunction('')} />;
-      case 'TKNAM': return <ThongkeNam onBack={() => setSelectedFunction('')} />;
-      case 'CAPNHAT': return <CapNhatDS onBack={() => setSelectedFunction('')} />;
-      case 'LAPDS': return <LapDanhSach onBack={() => setSelectedFunction('')} />;
-      case 'TAIDS': return <TaiDanhSach onBack={() => setSelectedFunction('')} />;
-      default: return null;
-    }
-  };
 
   const tabs = [
     {
@@ -120,6 +78,47 @@ export default function QuanLy() {
     });
   }
 
+  const defaultTabIndex =
+    loginRole === 'yte' ? 0 :
+    loginRole === 'ketoan' ? 1 : 2;
+
+  const [tabIndex, setTabIndex] = useState(defaultTabIndex);
+  const [selectedFunction, setSelectedFunction] = useState('');
+  const navigate = useNavigate();
+
+  const handleChange = (event, newValue) => {
+    const isQuanTriTab = loginRole === 'admin' && newValue === tabs.length - 1;
+    if (isQuanTriTab) {
+      navigate('/admin');
+    } else {
+      setTabIndex(newValue);
+    }
+  };
+
+  const handleFunctionSelect = (code) => {
+    if (code === 'ADMIN') {
+      navigate('/admin');
+    } else {
+      setSelectedFunction(code);
+    }
+  };
+
+  const renderSelectedFunction = () => {
+    switch (selectedFunction) {
+      case 'CHOT': return <ChotSoLieu onBack={() => setSelectedFunction('')} />;
+      case 'SONGAY': return <SoLieuNgay onBack={() => setSelectedFunction('')} />;
+      case 'SUATAN': return <DieuChinhSuatAn onBack={() => setSelectedFunction('')} />;
+      case 'XOANGAY': return <XoaDLNgay onBack={() => setSelectedFunction('')} />;
+      case 'TKNGAY': return <ThongkeNgay onBack={() => setSelectedFunction('')} />;
+      case 'TKTHANG': return <ThongkeThang onBack={() => setSelectedFunction('')} />;
+      case 'TKNAM': return <ThongkeNam onBack={() => setSelectedFunction('')} />;
+      case 'CAPNHAT': return <CapNhatDS onBack={() => setSelectedFunction('')} />;
+      case 'LAPDS': return <LapDanhSach onBack={() => setSelectedFunction('')} />;
+      case 'TAIDS': return <TaiDanhSach onBack={() => setSelectedFunction('')} />;
+      default: return null;
+    }
+  };
+
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: '#d0e4f7' }}>
       <Banner title="HỆ THỐNG QUẢN LÝ" />
@@ -140,7 +139,7 @@ export default function QuanLy() {
                 {tabs.map((tab, index) => (
                   <Tab
                     key={index}
-                    icon={index === 0 ? <StorageIcon fontSize="large" /> : tabs[index].functions[0].icon}
+                    icon={<StorageIcon fontSize="large" />}
                     iconPosition="top"
                     label={
                       <Typography fontWeight={600} sx={{ fontSize: '14px' }}>

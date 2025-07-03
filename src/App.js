@@ -28,10 +28,9 @@ import Lop5 from './pages/Lop5';
 import QuanLy from './pages/QuanLy';
 import About from './pages/About';
 import Admin from './Admin';
-import DangNhap from './DangNhap';
 import Footer from './pages/Footer';
 import HuongDan from './pages/HuongDan';
-import Login from "./Login";
+import Login from './Login';
 
 // ✅ Component bảo vệ route
 function PrivateRoute({ children }) {
@@ -40,12 +39,17 @@ function PrivateRoute({ children }) {
 }
 
 function App() {
+  const isLoggedIn = localStorage.getItem("loggedIn") === "true";
+
   return (
     <Router>
-      <Navigation />
+      {/* ✅ Navigation chỉ hiển thị khi đã đăng nhập */}
+      {isLoggedIn && <Navigation />}
+
       <div style={{ paddingTop: 0 }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* ✅ Trang mặc định là /home */}
+          <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/login" element={<Login />} />
 
           {/* ✅ Các route yêu cầu đăng nhập */}
@@ -59,7 +63,6 @@ function App() {
           <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
 
           {/* ✅ Các trang không cần đăng nhập */}
-          <Route path="/dangnhap" element={<DangNhap />} />
           <Route path="/gioithieu" element={<About />} />
           <Route path="/huongdan" element={<HuongDan />} />
           <Route path="/chucnang" element={<About />} />
@@ -109,7 +112,6 @@ function Navigation() {
     { path: '/lop3', name: 'Lớp 3' },
     { path: '/lop4', name: 'Lớp 4' },
     { path: '/lop5', name: 'Lớp 5' },
-    { path: '/login', name: 'Đăng nhập' },
   ];
 
   return (
