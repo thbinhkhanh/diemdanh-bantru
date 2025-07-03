@@ -28,7 +28,6 @@ import Lop5 from './pages/Lop5';
 import QuanLy from './pages/QuanLy';
 import About from './pages/About';
 import Admin from './Admin';
-import DangNhap from './DangNhap';
 import Footer from './pages/Footer';
 import HuongDan from './pages/HuongDan';
 import Login from "./Login";
@@ -45,7 +44,7 @@ function App() {
       <Navigation />
       <div style={{ paddingTop: 0 }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
 
           {/* ✅ Các route yêu cầu đăng nhập */}
@@ -59,7 +58,6 @@ function App() {
           <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
 
           {/* ✅ Các trang không cần đăng nhập */}
-          <Route path="/dangnhap" element={<DangNhap />} />
           <Route path="/gioithieu" element={<About />} />
           <Route path="/huongdan" element={<HuongDan />} />
           <Route path="/chucnang" element={<About />} />

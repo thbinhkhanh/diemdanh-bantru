@@ -49,7 +49,7 @@ function App() {
       <div style={{ paddingTop: 0 }}>
         <Routes>
           {/* ✅ Trang mặc định là /home */}
-          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
 
           {/* ✅ Các route yêu cầu đăng nhập */}
