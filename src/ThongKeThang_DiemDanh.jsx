@@ -82,16 +82,14 @@ export default function ThongKeThang_DiemDanh({ onBack }) {
                 && date.getMonth() === selectedDate.getMonth()
                 && date.getFullYear() === selectedDate.getFullYear()) {
               const day = date.getDate();
+              let loai = (val?.loai ?? "").trim();
+              const lydo = val?.lydo ?? "";
 
-              if (val === "P") {
-                daySummary[day] = "P";
-              } else if (val === "K" || val === "") {
-                daySummary[day] = "K";
-              } else {
-                daySummary[day] = "";
-              }
+              // Nếu loai rỗng thì gán là "K"
+              if (!loai) loai = "K";
+              daySummary[day] = { loai, lydo };
 
-              if (["P", "K", ""].includes(daySummary[day])) {
+              if (["P", "K", ""].includes(loai)) {
                 total += 1;
               }
             }
@@ -262,8 +260,8 @@ export default function ThongKeThang_DiemDanh({ onBack }) {
                       </TableCell>
                     );
                   })}
-                <TableCell align="center" sx={{ ...headCellStyle, minWidth: 70 }}>
-                  TỔNG CỘNG
+                <TableCell align="center" sx={{ ...headCellStyle, minWidth: 50 }}>
+                  TỔNG<br />CỘNG
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -285,11 +283,23 @@ export default function ThongKeThang_DiemDanh({ onBack }) {
                     {student.hoVaTen}
                   </TableCell>
                   {showDays &&
-                    daySet.map((d) => (
-                      <TableCell key={d} align="center" sx={{ px: 1 }}>
-                        {student.daySummary[d] || ""}
-                      </TableCell>
-                    ))}
+                    daySet.map((d) => {
+                      const info = student.daySummary[d];
+                      const loai = info?.loai ?? "";
+                        const lydo = info?.lydo ?? "";
+                        const tooltip = lydo?.trim()
+                          ? lydo
+                          : loai === "K"
+                            ? "Không rõ lý do"
+                            : undefined;
+
+                        return (
+                          <TableCell key={d} align="center" sx={{ px: 1 }} title={tooltip}>
+                            {loai}
+                          </TableCell>
+                        );
+
+                    })}
                   <TableCell align="center" sx={{ fontWeight: "bold", px: 1 }}>
                     {student.total > 0 ? student.total : ""}
                   </TableCell>

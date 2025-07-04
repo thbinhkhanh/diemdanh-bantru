@@ -1,31 +1,50 @@
-import { doc, updateDoc, deleteField } from 'firebase/firestore';
+import { doc, updateDoc, deleteField, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 export const saveSingleDiemDanh = async (student, namHoc) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
   const docRef = doc(db, `BANTRU_${namHoc}`, student.id);
+  const nhatKyRef = doc(db, `NHATKY_${namHoc}`, today); // Document là ngày điểm danh
 
   try {
     if (!student.diemDanh) {
-      // ✅ Khi học sinh VẮNG
+      // ✅ Học sinh VẮNG
       const value =
         student.vangCoPhep === 'có phép' ? 'P' :
         student.vangCoPhep === 'không phép' ? 'K' :
         '';
 
+      // Ghi điểm danh vào BANTRU_${namHoc}, gộp loai + lydo trong Diemdanh
       await updateDoc(docRef, {
-        [`Diemdanh.${today}`]: value,
-        [`LyDoVang.${today}`]: student.lyDo || '',
+        [`Diemdanh.${today}`]: {
+          loai: value,
+          lydo: student.lyDo || '',
+        },
         vang: 'x',
         lyDo: student.lyDo || '',
       });
+
+      // Ghi vào nhật ký theo ngày
+      await setDoc(nhatKyRef, {
+        [student.id]: {
+          hoTen: student.hoVaTen || '',
+          lop: student.lop || '',
+          loai: value,
+          lydo: student.lyDo || '',
+        },
+      }, { merge: true });
+
     } else {
-      // ✅ Khi học sinh đi học lại → xoá dữ liệu ngày hôm nay
+      // ✅ Học sinh đi học lại → xoá dữ liệu ngày hôm nay
+
       await updateDoc(docRef, {
         [`Diemdanh.${today}`]: deleteField(),
-        [`LyDoVang.${today}`]: deleteField(),
         lyDo: deleteField(),
-        vang: '', // hoặc bạn có thể bỏ hẳn field này nếu không dùng
+        vang: '',
+      });
+
+      await updateDoc(nhatKyRef, {
+        [student.id]: deleteField(),
       });
     }
   } catch (err) {

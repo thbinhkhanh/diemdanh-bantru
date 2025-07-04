@@ -76,11 +76,19 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
             const month = parseInt(mm);
 
             if (year === selectedDate.getFullYear()) {
-              let type = (val === "P") ? "P" : "K";
+              const type = (val?.loai ?? "").trim();
+
+              let countedType = null;
+              if (type === "P") {
+                countedType = "P";
+              } else {
+                countedType = "K"; // bao gồm "K", "" và các giá trị không hợp lệ
+              }
+
               if (!monthSummary[month]) {
                 monthSummary[month] = { P: 0, K: 0 };
               }
-              monthSummary[month][type] += 1;
+              monthSummary[month][countedType] += 1;
               total += 1;
             }
           });
@@ -93,6 +101,8 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
             total,
           };
         });
+
+
 
         const months = Array.from({ length: 12 }, (_, i) => i + 1);
         setMonthSet(months);

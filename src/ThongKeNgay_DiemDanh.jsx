@@ -13,24 +13,19 @@ import { format } from "date-fns";
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
-function groupData(data, selectedDate) {
+function groupDataFromNhatKy(data, danhSachLop) {
   const khoiData = {};
   let truongCoPhep = 0;
   let truongKhongPhep = 0;
-  const ngayChon = format(selectedDate, "yyyy-MM-dd");
 
-  const tatCaKhoiLop = new Set(); // Dùng để lưu tất cả các lớp/khoi có mặt
-
-  // Bước 1: Duyệt qua tất cả học sinh để xây dựng danh sách lớp và khối
-  data.forEach(student => {
-    const lop = student.lop?.toString().trim();
-    if (!lop) return;
+  // Lấy tất cả lớp từ danh sách lớp
+  const tatCaKhoiLop = new Set();
+  Object.keys(danhSachLop).forEach((lop) => {
     const khoi = lop.split(".")[0];
-    if (!khoi) return;
     tatCaKhoiLop.add(`${khoi}|${lop}`);
   });
 
-  // Bước 2: Khởi tạo tất cả lớp/khoi ban đầu (tất cả thống kê = 0)
+  // Tạo cấu trúc ban đầu
   tatCaKhoiLop.forEach(entry => {
     const [khoi, lop] = entry.split("|");
     khoiData[khoi] = khoiData[khoi] || {
@@ -48,34 +43,26 @@ function groupData(data, selectedDate) {
     };
   });
 
-  // Bước 3: Duyệt để tính thống kê thực tế theo điểm danh
-  data.forEach(student => {
-    const lop = student.lop?.toString().trim();
+  // Tính thống kê từ dữ liệu điểm danh
+  data.forEach(entry => {
+    const lop = entry.lop?.toString().trim();
     const khoi = lop?.split(".")[0];
-    const huyDK = (student.huyDangKy || "").toUpperCase();
-    if (!lop || !khoi) return;
+    const loai = (entry.loai || "").toUpperCase();
 
-    // Nếu học sinh không có điểm danh ngày đó → không tính
-    const trangThai = student.Diemdanh?.[ngayChon];
-    if (trangThai === undefined || huyDK === "X") return;
+    if (!lop || !khoi || !khoiData[khoi] || !khoiData[khoi].children[lop]) return;
 
-    // Đảm bảo khởi tạo tồn tại
-    const khoiObj = khoiData[khoi];
-    const lopObj = khoiObj.children[lop];
-
-    // Thống kê
-    if (trangThai === "P") {
-      lopObj.coPhep += 1;
-      khoiObj.coPhep += 1;
+    if (loai === "P") {
+      khoiData[khoi].coPhep += 1;
+      khoiData[khoi].children[lop].coPhep += 1;
       truongCoPhep += 1;
     } else {
-      lopObj.khongPhep += 1;
-      khoiObj.khongPhep += 1;
+      khoiData[khoi].khongPhep += 1;
+      khoiData[khoi].children[lop].khongPhep += 1;
       truongKhongPhep += 1;
     }
   });
 
-  // Bước 4: Gộp lại thành mảng kết quả
+  // Chuẩn bị dữ liệu trả về
   const summaryData = [];
   const khoiList = Object.keys(khoiData).sort();
 
@@ -103,6 +90,8 @@ function groupData(data, selectedDate) {
 
   return summaryData;
 }
+
+
 
 
 function Row({ row, openGroups, setOpenGroups, summaryData }) {
@@ -173,17 +162,42 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
         const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
         if (!namHocValue) {
-          console.error("❌ Không tìm thấy năm học hiện tại trong hệ thống!");
+          console.error("❌ Không tìm thấy năm học hiện tại!");
           setIsLoading(false);
           return;
         }
 
-        const snapshot = await getDocs(collection(db, `BANTRU_${namHocValue}`));
-        const studentData = snapshot.docs.map(doc => doc.data());
-        setDataList(studentData);
-        setSummaryData(groupData(studentData, selectedDate));
+        const ngayChon = format(selectedDate, "yyyy-MM-dd");
+
+        const [nhatKyDocSnap, dsSnap] = await Promise.all([
+          getDoc(doc(db, `NHATKY_${namHocValue}`, ngayChon)),
+          getDocs(collection(db, `DANHSACH_${namHocValue}`)),
+        ]);
+
+        let danhSachLop = {};
+        dsSnap.forEach(docSnap => {
+          const data = docSnap.data();
+          const list = data.list || [];
+          list.forEach(lop => {
+            if (typeof lop === "string") danhSachLop[lop.trim()] = true;
+          });
+        });
+
+        let diemDanhData = [];
+        if (nhatKyDocSnap.exists()) {
+          const rawData = nhatKyDocSnap.data();
+          diemDanhData = Object.entries(rawData).map(([id, value]) => ({
+            id,
+            ...value
+          }));
+        }
+
+        const summary = groupDataFromNhatKy(diemDanhData, danhSachLop);
+
+        setDataList(diemDanhData);
+        setSummaryData(summary);
       } catch (err) {
-        console.error("❌ Lỗi khi tải dữ liệu từ Firebase:", err);
+        console.error("❌ Lỗi khi tải dữ liệu:", err);
       } finally {
         setIsLoading(false);
       }
@@ -191,6 +205,10 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
 
     fetchData();
   }, [selectedDate]);
+
+
+
+
 
   return (
     <Box sx={{ maxWidth: 500, margin: "auto", p: 1, mt: 2 }}>
