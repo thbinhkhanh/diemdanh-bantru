@@ -133,19 +133,20 @@ export default function Lop3() {
   const handleSave = async () => {
     if (!namHoc) return;
     setIsSaving(true);
-
     const changed = students.filter(s => s.registered !== originalRegistered[s.id]);
     const absent = students.filter(s => !s.diemDanh);
-
+    // 👉 Không có gì thay đổi thì thoát sớm
+    if (changed.length === 0 && absent.length === 0) {
+      setIsSaving(false); // Đảm bảo không kẹt ở trạng thái "Đang lưu..."
+      return;
+    }
     try {
       await saveRegistrationChanges(changed, namHoc);
       await saveMultipleDiemDanh(absent, namHoc, today);
-
       const updatedMap = { ...originalRegistered };
       changed.forEach(s => (updatedMap[s.id] = s.registered));
       setOriginalRegistered(updatedMap);
-
-      setLastSaved(new Date()); // 👈 THÊM DÒNG NÀY
+      setLastSaved(new Date()); // ✅ Gọi chính xác khi thực sự có lưu
     } catch (err) {
       console.error('Lỗi khi lưu:', err.message);
     } finally {
@@ -192,8 +193,12 @@ export default function Lop3() {
 
   const handleClassChange = async (event) => {
     clearTimeout(saveTimeout.current);
-    await handleSave();
-    setSelectedClass(event.target.value);
+    const newClass = event.target.value;
+    setSelectedClass(newClass);
+    // Đợi cập nhật lớp xong rồi mới lưu
+    setTimeout(() => {
+      handleSave(); // handleSave đã có kiểm tra thay đổi, nên an toàn
+    }, 0);
   };
 
   const handleVangCoPhepChange = (index, value) => {

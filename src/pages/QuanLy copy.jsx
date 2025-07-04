@@ -25,8 +25,6 @@ import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import StorageIcon from '@mui/icons-material/Storage';
-import InsightsIcon from '@mui/icons-material/Insights'; // hoặc chọn icon khác tùy ý
-
 
 // Components
 import ChotSoLieu from '../ChotSoLieu';
@@ -39,10 +37,6 @@ import ThongkeNam from '../ThongKeNam';
 import CapNhatDS from '../CapNhatDS';
 import LapDanhSach from '../LapDanhSach';
 import TaiDanhSach from '../TaiDanhSach';
-import ThongKeNgay_DiemDanh from '../ThongKeNgay_DiemDanh';
-import ThongKeThang_DiemDanh from '../ThongKeThang_DiemDanh';
-import ThongKeNam_DiemDanh from '../ThongKeNam_DiemDanh';
-
 import Banner from './Banner';
 
 export default function QuanLy() {
@@ -62,11 +56,10 @@ export default function QuanLy() {
   const defaultTabIndex =
     tabFromLogin === 'dulieu' ? 0 :
     tabFromLogin === 'thongke' ? 1 :
-    tabFromLogin === 'diemdanh' ? 2 :
-    tabFromLogin === 'danhsach' ? 3 :
+    tabFromLogin === 'danhsach' ? 2 :
     loginRole === 'YTE' ? 0 :
     loginRole === 'KETOAN' ? 1 :
-    3;
+    2;
 
   const [tabIndex, setTabIndex] = useState(defaultTabIndex);
   const [selectedFunction, setSelectedFunction] = useState('');
@@ -89,25 +82,20 @@ export default function QuanLy() {
   };
 
   const renderSelectedFunction = () => {
-  switch (selectedFunction) {
-    case 'CHOT': return <ChotSoLieu onBack={() => setSelectedFunction('')} />;
-    case 'SONGAY': return <SoLieuNgay onBack={() => setSelectedFunction('')} />;
-    case 'SUATAN': return <DieuChinhSuatAn onBack={() => setSelectedFunction('')} />;
-    case 'XOANGAY': return <XoaDLNgay onBack={() => setSelectedFunction('')} />;
-    case 'TKNGAY': return <ThongkeNgay onBack={() => setSelectedFunction('')} />;
-    case 'TKTHANG': return <ThongkeThang onBack={() => setSelectedFunction('')} />;
-    case 'TKNAM': return <ThongkeNam onBack={() => setSelectedFunction('')} />;
-
-    case 'DDNGAY': return <ThongKeNgay_DiemDanh onBack={() => setSelectedFunction('')} />;
-    case 'DDTHANG': return <ThongKeThang_DiemDanh onBack={() => setSelectedFunction('')} />;
-    case 'DDNAM': return <ThongKeNam_DiemDanh onBack={() => setSelectedFunction('')} />;
-
-    case 'CAPNHAT': return <CapNhatDS onBack={() => setSelectedFunction('')} />;
-    case 'LAPDS': return <LapDanhSach onBack={() => setSelectedFunction('')} />;
-    case 'TAIDS': return <TaiDanhSach onBack={() => setSelectedFunction('')} />;
-    default: return null;
-  }
-};
+    switch (selectedFunction) {
+      case 'CHOT': return <ChotSoLieu onBack={() => setSelectedFunction('')} />;
+      case 'SONGAY': return <SoLieuNgay onBack={() => setSelectedFunction('')} />;
+      case 'SUATAN': return <DieuChinhSuatAn onBack={() => setSelectedFunction('')} />;
+      case 'XOANGAY': return <XoaDLNgay onBack={() => setSelectedFunction('')} />;
+      case 'TKNGAY': return <ThongkeNgay onBack={() => setSelectedFunction('')} />;
+      case 'TKTHANG': return <ThongkeThang onBack={() => setSelectedFunction('')} />;
+      case 'TKNAM': return <ThongkeNam onBack={() => setSelectedFunction('')} />;
+      case 'CAPNHAT': return <CapNhatDS onBack={() => setSelectedFunction('')} />;
+      case 'LAPDS': return <LapDanhSach onBack={() => setSelectedFunction('')} />;
+      case 'TAIDS': return <TaiDanhSach onBack={() => setSelectedFunction('')} />;
+      default: return null;
+    }
+  };
 
   const tabs = [
     {
@@ -120,22 +108,13 @@ export default function QuanLy() {
       ],
     },
     {
-      label: 'BÁN TRÚ',
+      label: 'THỐNG KÊ',
       functions: [
         { code: 'TKNGAY', label: 'THỐNG KÊ NGÀY', icon: <BarChartIcon fontSize="large" />, color: '#7b1fa2' },
         { code: 'TKTHANG', label: 'CHI TIẾT THÁNG', icon: <QueryStatsIcon fontSize="large" />, color: '#0097a7' },
         { code: 'TKNAM', label: 'TỔNG HỢP NĂM', icon: <TimelineIcon fontSize="large" />, color: '#1976d2' },
       ],
     },
-    {
-      label: 'ĐIỂM DANH',
-      functions: [
-        { code: 'DDNGAY', label: 'ĐIỂM DANH NGÀY', icon: <BarChartIcon fontSize="large" />, color: '#7b1fa2' },
-        { code: 'DDTHANG', label: 'ĐIỂM DANH THÁNG', icon: <QueryStatsIcon fontSize="large" />, color: '#0097a7' },
-        { code: 'DDNAM', label: 'ĐIỂM DANH NĂM', icon: <TimelineIcon fontSize="large" />, color: '#1976d2' },
-      ],
-    },
-
     {
       label: 'DANH SÁCH',
       functions: [
