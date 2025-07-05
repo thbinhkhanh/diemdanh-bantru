@@ -13,6 +13,8 @@ import { db } from "./firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { format } from "date-fns";
 import { useMediaQuery, useTheme } from "@mui/material";
+import * as XLSX from "sheetjs-style";
+import { exportNhatKyToExcel } from "./utils/exportNhatKy";
 
 export default function NhatKyDiemDanh({ onBack }) {
   const today = new Date();
@@ -29,9 +31,7 @@ export default function NhatKyDiemDanh({ onBack }) {
   const [order, setOrder] = useState("asc");
 
   const [filterKhoi, setFilterKhoi] = useState("Tất cả");
-  const [filterLop, setFilterLop] = useState("Tất cả");
-  const [danhSachLop, setDanhSachLop] = useState([]);
-
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -56,7 +56,6 @@ export default function NhatKyDiemDanh({ onBack }) {
       if (!namHocValue) {
         console.error("❌ Không tìm thấy năm học hiện tại!");
         setDataList([]);
-        setDanhSachLop([]);
         setIsLoading(false);
         return;
       }
@@ -112,17 +111,9 @@ export default function NhatKyDiemDanh({ onBack }) {
 
       setDataList(combinedData);
 
-      const uniqueLop = [...new Set(combinedData.map(item => item.lop).filter(Boolean))];
-      uniqueLop.sort((a, b) => {
-        const [numA] = a.match(/^(\d+)/) || [""];
-        const [numB] = b.match(/^(\d+)/) || [""];
-        return +numA - +numB;
-      });
-      setDanhSachLop(["Tất cả", ...uniqueLop]);
     } catch (err) {
       console.error("❌ Lỗi khi tải dữ liệu:", err);
       setDataList([]);
-      setDanhSachLop([]);
     } finally {
       setIsLoading(false);
     }
@@ -161,9 +152,8 @@ export default function NhatKyDiemDanh({ onBack }) {
 
   const filteredData = dataList.filter((item) => {
     const lop = item.lop || "";
-    const matchLop = filterLop === "Tất cả" || lop === filterLop;
     const matchKhoi = filterKhoi === "Tất cả" || lop.startsWith(filterKhoi.split(" ")[1]);
-    return matchLop && matchKhoi;
+    return matchKhoi;
   });
 
   const sortedData = [...filteredData].sort((a, b) => {
@@ -177,20 +167,36 @@ export default function NhatKyDiemDanh({ onBack }) {
 
   const handleKhoiChange = (value) => {
     setFilterKhoi(value);
-    setFilterLop("Tất cả");
   };
 
-  const handleLopChange = (value) => {
-    setFilterLop(value);
-    if (value !== "Tất cả") {
-      const khoiSo = value.match(/^\d+/)?.[0];
-      setFilterKhoi(khoiSo ? `Khối ${khoiSo}` : "Tất cả");
+  // ⚠️ Chỉ thay đổi ở đây: gọi hàm exportNhatKyToExcel(sortedData)
+  const handleExportExcel = () => {
+    if (sortedData.length === 0) {
+      alert("Không có dữ liệu để xuất.");
+      return;
     }
+    exportNhatKyToExcel(sortedData);
   };
 
   return (
-    <Box sx={{ width: "95vw", maxWidth: "700px", margin: "auto", p: 2 }}>
-      <Paper elevation={3} sx={{ p: 4, borderRadius: 4, width: "100%" }}>
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: "700px",
+        mx: "auto",
+        px: { xs: 1, sm: 2 },
+        pt: 2,
+      }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          p: { xs: 2, sm: 4 },
+          borderRadius: 2,
+          width: { xs: "90%", sm: "100%" },
+          mx: "auto",
+        }}
+      >
         <Typography
           variant="h5"
           fontWeight="bold"
@@ -241,39 +247,24 @@ export default function NhatKyDiemDanh({ onBack }) {
             )}
 
             {filterMode === "thang" && (
-              <>
-                <FormControl size="small" sx={{ minWidth: 110 }}>
-                  <InputLabel>Tháng</InputLabel>
-                  <Select
-                    value={filterThang}
-                    label="Tháng"
-                    onChange={(e) => setFilterThang(Number(e.target.value))}
-                  >
-                    {[...Array(12)].map((_, i) => (
-                      <MenuItem key={i + 1} value={i + 1}>
-                        Tháng {i + 1}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ minWidth: 90 }}>
-                  <InputLabel>Năm</InputLabel>
-                  <Select
-                    value={filterNam}
-                    label="Năm"
-                    onChange={(e) => setFilterNam(Number(e.target.value))}
-                  >
-                    {[...Array(5)].map((_, i) => {
-                      const year = today.getFullYear() - i;
-                      return (
-                        <MenuItem key={year} value={year}>
-                          {year}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
-                </FormControl>
-              </>
+              <DatePicker
+                label="Chọn tháng"
+                views={["year", "month"]}
+                value={new Date(filterNam, filterThang - 1)}
+                onChange={(newDate) => {
+                  if (newDate) {
+                    setFilterNam(newDate.getFullYear());
+                    setFilterThang(newDate.getMonth() + 1);
+                  }
+                }}
+                format="M/yyyy"
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    sx: { width: 130 },
+                  },
+                }}
+              />
             )}
 
             {filterMode === "nam" && (
@@ -311,20 +302,12 @@ export default function NhatKyDiemDanh({ onBack }) {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-              <InputLabel>Lớp</InputLabel>
-              <Select
-                value={filterLop}
-                label="Lớp"
-                onChange={(e) => handleLopChange(e.target.value)}
-              >
-                {danhSachLop.map((l) => (
-                  <MenuItem key={l} value={l}>
-                    {l}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {/* ⚠️ Nút Xuất Excel chỉ hiển thị ở desktop */}
+            {!isMobile && (
+              <Button variant="contained" color="success" onClick={handleExportExcel}>
+                📤 Xuất Excel
+              </Button>
+            )}
           </Box>
         </LocalizationProvider>
 
@@ -352,12 +335,13 @@ export default function NhatKyDiemDanh({ onBack }) {
                       </Typography>
                       <Typography>Lớp: {item.lop || ""}</Typography>
                       <Typography>
-                        Có phép: {item.loai?.trim().toUpperCase() === "P" ? "✅" : "❌"}
+                        Có phép:{" "}
+                        {item.loai?.trim().toUpperCase() === "P" ? "✅" : "❌"}
                       </Typography>
                       <Typography>
                         Lý do nghỉ: {item.lydo?.trim() || "Không rõ lý do"}
                       </Typography>
-                      <Typography color="error" >
+                      <Typography color="error">
                         Ngày nghỉ:{" "}
                         {item.ngay
                           ? new Date(item.ngay).toLocaleDateString("vi-VN")
@@ -365,6 +349,19 @@ export default function NhatKyDiemDanh({ onBack }) {
                       </Typography>
                     </Paper>
                   ))
+                )}
+
+                {/* ⚠️ Nút Xuất Excel chuyển xuống dưới trên mobile */}
+                {sortedData.length > 0 && (
+                  <Box sx={{ display: "flex", justifyContent: "center" }}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={handleExportExcel}
+                    >
+                      📤 Xuất Excel
+                    </Button>
+                  </Box>
                 )}
               </Box>
             ) : (
@@ -378,7 +375,10 @@ export default function NhatKyDiemDanh({ onBack }) {
                       textAlign: "center",
                       padding: "10px 8px",
                     },
-                    "& td.hoten": { textAlign: "left", whiteSpace: "nowrap" },
+                    "& td.hoten": {
+                      textAlign: "left",
+                      whiteSpace: "nowrap",
+                    },
                   }}
                 >
                   <TableHead>
@@ -456,7 +456,16 @@ export default function NhatKyDiemDanh({ onBack }) {
           </>
         )}
 
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+        {/* ⚠️ Chỉ hiển thị nút Quay lại cuối cùng, Excel đã nằm phía trên */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            mt: 3,
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
           <Button onClick={onBack} color="secondary">
             ⬅️ Quay lại
           </Button>
@@ -464,5 +473,4 @@ export default function NhatKyDiemDanh({ onBack }) {
       </Paper>
     </Box>
   );
-
 }

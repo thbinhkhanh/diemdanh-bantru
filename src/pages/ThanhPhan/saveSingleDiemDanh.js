@@ -2,9 +2,13 @@ import { doc, updateDoc, deleteField, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 export const saveSingleDiemDanh = async (student, namHoc) => {
-  const today = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
+  const now = new Date();
+  const vietnamOffsetMs = 7 * 60 * 60 * 1000;
+  const vietnamNow = new Date(now.getTime() + vietnamOffsetMs);
+  const today = vietnamNow.toISOString().split('T')[0]; // yyyy-mm-dd theo giờ VN
+
   const docRef = doc(db, `BANTRU_${namHoc}`, student.id);
-  const nhatKyRef = doc(db, `NHATKY_${namHoc}`, today); // Document là ngày điểm danh
+  const nhatKyRef = doc(db, `NHATKY_${namHoc}`, today); // Document là ngày điểm danh (giờ VN)
 
   try {
     if (!student.diemDanh) {
@@ -14,7 +18,7 @@ export const saveSingleDiemDanh = async (student, namHoc) => {
         student.vangCoPhep === 'không phép' ? 'K' :
         '';
 
-      // Ghi điểm danh vào BANTRU_${namHoc}, gộp loai + lydo trong Diemdanh
+      // Ghi điểm danh vào BANTRU_${namHoc}
       await updateDoc(docRef, {
         [`Diemdanh.${today}`]: {
           loai: value,
@@ -31,12 +35,12 @@ export const saveSingleDiemDanh = async (student, namHoc) => {
           lop: student.lop || '',
           loai: value,
           lydo: student.lyDo || '',
+          ngay: today
         },
       }, { merge: true });
 
     } else {
       // ✅ Học sinh đi học lại → xoá dữ liệu ngày hôm nay
-
       await updateDoc(docRef, {
         [`Diemdanh.${today}`]: deleteField(),
         lyDo: deleteField(),
