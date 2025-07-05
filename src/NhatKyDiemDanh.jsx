@@ -234,8 +234,10 @@ export default function NhatKyDiemDanh({ onBack }) {
               flexWrap: "wrap",
               gap: 2,
               mb: 2,
+              flexDirection: { xs: "column", sm: "row" }, // xs = mobile, sm = tablet+
             }}
           >
+
             {filterMode === "ngay" && (
               <DatePicker
                 label="Chọn ngày"
