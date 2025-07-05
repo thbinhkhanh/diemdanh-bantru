@@ -12,13 +12,12 @@ import vi from "date-fns/locale/vi";
 import { db } from "./firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { format } from "date-fns";
+import { useMediaQuery, useTheme } from "@mui/material";
 
 export default function NhatKyDiemDanh({ onBack }) {
   const today = new Date();
 
-  // Chế độ lọc: "ngay", "thang", "nam"
   const [filterMode, setFilterMode] = useState("ngay");
-
   const [selectedDate, setSelectedDate] = useState(today);
   const [filterThang, setFilterThang] = useState(today.getMonth() + 1);
   const [filterNam, setFilterNam] = useState(today.getFullYear());
@@ -33,22 +32,22 @@ export default function NhatKyDiemDanh({ onBack }) {
   const [filterLop, setFilterLop] = useState("Tất cả");
   const [danhSachLop, setDanhSachLop] = useState([]);
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const danhSachKhoi = ["Tất cả", "Khối 1", "Khối 2", "Khối 3", "Khối 4", "Khối 5"];
 
-  // Đồng bộ selectedDate khi đổi tháng hoặc năm (dùng cho filterMode != "ngay" để tránh ngày vượt quá tháng)
   useEffect(() => {
-  if (filterMode === "ngay") {
-    const currentDay = selectedDate.getDate();
-    const maxDays = new Date(filterNam, filterThang, 0).getDate();
-    const safeDay = Math.min(currentDay, maxDays);
-    const newDate = new Date(filterNam, filterThang - 1, safeDay);
-    setSelectedDate(newDate);
-  }
-}, [filterThang, filterNam, filterMode]);
+    if (filterMode === "ngay") {
+      const currentDay = selectedDate.getDate();
+      const maxDays = new Date(filterNam, filterThang, 0).getDate();
+      const safeDay = Math.min(currentDay, maxDays);
+      const newDate = new Date(filterNam, filterThang - 1, safeDay);
+      setSelectedDate(newDate);
+    }
+  }, [filterThang, filterNam, filterMode]);
 
-
-  // Hàm lấy dữ liệu theo filterMode
-    const fetchData = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     try {
       const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
@@ -72,14 +71,12 @@ export default function NhatKyDiemDanh({ onBack }) {
           combinedData = Object.entries(rawData).map(([id, value]) => ({ id, ...value }));
         }
       } else {
-        // Tháng hoặc năm
         const datesToFetch = [];
 
         if (filterMode === "thang") {
           const year = filterNam;
           const month = filterThang - 1;
           const daysInMonth = new Date(year, month + 1, 0).getDate();
-
           for (let day = 1; day <= daysInMonth; day++) {
             datesToFetch.push(new Date(year, month, day));
           }
@@ -95,7 +92,6 @@ export default function NhatKyDiemDanh({ onBack }) {
           }
         }
 
-        // Dùng Promise.all để load song song
         const promises = datesToFetch.map((date) => {
           const ngayKey = format(date, "yyyy-MM-dd");
           const docRef = doc(db, `NHATKY_${namHocValue}`, ngayKey);
@@ -132,7 +128,6 @@ export default function NhatKyDiemDanh({ onBack }) {
     }
   };
 
-
   useEffect(() => {
     fetchData();
   }, [filterMode, selectedDate, filterThang, filterNam]);
@@ -164,7 +159,6 @@ export default function NhatKyDiemDanh({ onBack }) {
       : hoB?.localeCompare(hoA, "vi", { sensitivity: "base" }) || 0;
   };
 
-  // Lọc dữ liệu theo Khối và Lớp
   const filteredData = dataList.filter((item) => {
     const lop = item.lop || "";
     const matchLop = filterLop === "Tất cả" || lop === filterLop;
@@ -183,11 +177,7 @@ export default function NhatKyDiemDanh({ onBack }) {
 
   const handleKhoiChange = (value) => {
     setFilterKhoi(value);
-    if (value === "Tất cả") {
-      setFilterLop("Tất cả");
-    } else {
-      setFilterLop("Tất cả");
-    }
+    setFilterLop("Tất cả");
   };
 
   const handleLopChange = (value) => {
@@ -206,7 +196,7 @@ export default function NhatKyDiemDanh({ onBack }) {
           fontWeight="bold"
           align="center"
           color="primary"
-          sx={{ mb: 4, borderBottom: '3px solid #1976d2', pb: 1 }}
+          sx={{ mb: 4, borderBottom: "3px solid #1976d2", pb: 1 }}
         >
           NHẬT KÝ ĐIỂM DANH
         </Typography>
@@ -234,10 +224,8 @@ export default function NhatKyDiemDanh({ onBack }) {
               flexWrap: "wrap",
               gap: 2,
               mb: 2,
-              flexDirection: { xs: "column", sm: "row" }, // xs = mobile, sm = tablet+
             }}
           >
-
             {filterMode === "ngay" && (
               <DatePicker
                 label="Chọn ngày"
@@ -254,7 +242,7 @@ export default function NhatKyDiemDanh({ onBack }) {
 
             {filterMode === "thang" && (
               <>
-                <FormControl size="small" sx={{ minWidth: 110, width: 110 }}>
+                <FormControl size="small" sx={{ minWidth: 110 }}>
                   <InputLabel>Tháng</InputLabel>
                   <Select
                     value={filterThang}
@@ -268,8 +256,7 @@ export default function NhatKyDiemDanh({ onBack }) {
                     ))}
                   </Select>
                 </FormControl>
-
-                <FormControl size="small" sx={{ minWidth: 90, width: 90 }}>
+                <FormControl size="small" sx={{ minWidth: 90 }}>
                   <InputLabel>Năm</InputLabel>
                   <Select
                     value={filterNam}
@@ -290,7 +277,7 @@ export default function NhatKyDiemDanh({ onBack }) {
             )}
 
             {filterMode === "nam" && (
-              <FormControl size="small" sx={{ minWidth: 100, width: 100 }}>
+              <FormControl size="small" sx={{ minWidth: 100 }}>
                 <InputLabel>Năm</InputLabel>
                 <Select
                   value={filterNam}
@@ -309,20 +296,32 @@ export default function NhatKyDiemDanh({ onBack }) {
               </FormControl>
             )}
 
-            {/* Gộp thêm dropdown Khối và Lớp ở đây */}
-            <FormControl size="small" sx={{ minWidth: 100, width: 100 }}>
+            <FormControl size="small" sx={{ minWidth: 100 }}>
               <InputLabel>Khối</InputLabel>
-              <Select value={filterKhoi} label="Khối" onChange={(e) => handleKhoiChange(e.target.value)}>
+              <Select
+                value={filterKhoi}
+                label="Khối"
+                onChange={(e) => handleKhoiChange(e.target.value)}
+              >
                 {danhSachKhoi.map((k) => (
-                  <MenuItem key={k} value={k}>{k}</MenuItem>
+                  <MenuItem key={k} value={k}>
+                    {k}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ minWidth: 100, width: 100 }}>
+
+            <FormControl size="small" sx={{ minWidth: 100 }}>
               <InputLabel>Lớp</InputLabel>
-              <Select value={filterLop} label="Lớp" onChange={(e) => handleLopChange(e.target.value)}>
+              <Select
+                value={filterLop}
+                label="Lớp"
+                onChange={(e) => handleLopChange(e.target.value)}
+              >
                 {danhSachLop.map((l) => (
-                  <MenuItem key={l} value={l}>{l}</MenuItem>
+                  <MenuItem key={l} value={l}>
+                    {l}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -334,92 +333,136 @@ export default function NhatKyDiemDanh({ onBack }) {
             <CircularProgress />
           </Box>
         ) : (
-          <TableContainer component={Paper}>
-            <Table
-              sx={{
-                border: "1px solid #ccc",
-                borderCollapse: "collapse",
-                "& td, & th": {
-                  border: "1px solid #ccc",
-                  textAlign: "center",
-                  padding: "10px 8px",
-                },
-                "& td.hoten": {
-                  textAlign: "left",
-                  whiteSpace: "nowrap",
-                },
-              }}
-            >
-              <TableHead>
-                <TableRow sx={{ backgroundColor: "#1976d2" }}>
-                  {[ 
-                    { label: "STT", key: null },
-                    { label: "HỌ VÀ TÊN", key: "hoTen" },
-                    { label: "LỚP", key: "lop" },
-                    { label: "CÓ PHÉP", key: "loai" },
-                    { label: "LÝ DO VẮNG", key: "lydo" },
-                  ].map(({ label, key }, i) => (
-                    <TableCell
-                      key={i}
-                      align="center"
-                      sx={{
-                        color: "#fff",
-                        fontWeight: "bold",
-                        cursor: key ? "pointer" : "default",
-                        whiteSpace: "nowrap",
-                      }}
+          <>
+            {isMobile ? (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {sortedData.length === 0 ? (
+                  <Typography align="center" fontStyle="italic">
+                    Không có dữ liệu phù hợp
+                  </Typography>
+                ) : (
+                  sortedData.map((item, index) => (
+                    <Paper
+                      key={item.id || index}
+                      elevation={2}
+                      sx={{ p: 2, borderRadius: 2 }}
                     >
-                      {key ? (
-                        <TableSortLabel
-                          active={orderBy === key}
-                          direction={orderBy === key ? order : "asc"}
-                          onClick={() => handleSort(key)}
+                      <Typography fontWeight="bold" variant="subtitle1">
+                        {index + 1}. {item.hoTen || ""}
+                      </Typography>
+                      <Typography>Lớp: {item.lop || ""}</Typography>
+                      <Typography>
+                        Có phép: {item.loai?.trim().toUpperCase() === "P" ? "✅" : "❌"}
+                      </Typography>
+                      <Typography>
+                        Lý do nghỉ: {item.lydo?.trim() || "Không rõ lý do"}
+                      </Typography>
+                      <Typography color="error" >
+                        Ngày nghỉ:{" "}
+                        {item.ngay
+                          ? new Date(item.ngay).toLocaleDateString("vi-VN")
+                          : "Không rõ"}
+                      </Typography>
+                    </Paper>
+                  ))
+                )}
+              </Box>
+            ) : (
+              <TableContainer component={Paper}>
+                <Table
+                  sx={{
+                    border: "1px solid #ccc",
+                    borderCollapse: "collapse",
+                    "& td, & th": {
+                      border: "1px solid #ccc",
+                      textAlign: "center",
+                      padding: "10px 8px",
+                    },
+                    "& td.hoten": { textAlign: "left", whiteSpace: "nowrap" },
+                  }}
+                >
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: "#1976d2" }}>
+                      {[
+                        { label: "STT", key: null },
+                        { label: "HỌ VÀ TÊN", key: "hoTen" },
+                        { label: "LỚP", key: "lop" },
+                        { label: "CÓ PHÉP", key: "loai" },
+                        { label: "LÝ DO VẮNG", key: "lydo" },
+                        { label: "NGÀY NGHỈ", key: "ngay" },
+                      ].map(({ label, key }, i) => (
+                        <TableCell
+                          key={i}
+                          align="center"
                           sx={{
                             color: "#fff",
-                            "& .MuiTableSortLabel-icon": { color: "#fff !important" },
+                            fontWeight: "bold",
+                            cursor: key ? "pointer" : "default",
+                            whiteSpace: "nowrap",
                           }}
                         >
-                          {label}
-                        </TableSortLabel>
-                      ) : (
-                        label
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {sortedData.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} sx={{ fontStyle: "italic" }}>
-                      Không có dữ liệu phù hợp
-                    </TableCell>
-                  </TableRow>
-                )}
-                {sortedData.map((item, index) => (
-                  <TableRow key={item.id || index}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell className="hoten">{item.hoTen || ""}</TableCell>
-                    <TableCell>{item.lop || ""}</TableCell>
-                    <TableCell>
-                      {item.loai?.trim().toUpperCase() === "P" ? "✅" : "❌"}
-                    </TableCell>
-
-                    <TableCell>{item.lydo?.trim() ? item.lydo : "Không rõ lý do"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                          {key ? (
+                            <TableSortLabel
+                              active={orderBy === key}
+                              direction={orderBy === key ? order : "asc"}
+                              onClick={() => handleSort(key)}
+                              sx={{
+                                color: "#fff",
+                                "& .MuiTableSortLabel-icon": {
+                                  color: "#fff !important",
+                                },
+                              }}
+                            >
+                              {label}
+                            </TableSortLabel>
+                          ) : (
+                            label
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {sortedData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} sx={{ fontStyle: "italic" }}>
+                          Không có dữ liệu phù hợp
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      sortedData.map((item, index) => (
+                        <TableRow key={item.id || index}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell className="hoten">{item.hoTen || ""}</TableCell>
+                          <TableCell>{item.lop || ""}</TableCell>
+                          <TableCell>
+                            {item.loai?.trim().toUpperCase() === "P" ? "✅" : "❌"}
+                          </TableCell>
+                          <TableCell>
+                            {item.lydo?.trim() || "Không rõ lý do"}
+                          </TableCell>
+                          <TableCell>
+                            {item.ngay
+                              ? new Date(item.ngay).toLocaleDateString("vi-VN")
+                              : "Không rõ"}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </>
         )}
 
         <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
           <Button onClick={onBack} color="secondary">
             ⬅️ Quay lại
           </Button>
-
         </Box>
       </Paper>
     </Box>
   );
+
 }
