@@ -15,10 +15,11 @@ export default function Home() {
   useEffect(() => {
     const fetchToggle = async () => {
       try {
-        const toggleSnap = await getDoc(doc(db, "SETTINGS", "TOGGLE"));
+        const toggleSnap = await getDoc(doc(db, "SETTINGS", "TAIDULIEU"));
         if (toggleSnap.exists()) {
-          setUseNewVersion(toggleSnap.data().useNewVersion === true);
+          setUseNewVersion(toggleSnap.data().theokhoi === true);
         }
+
       } catch (error) {
         console.error("❌ Lỗi khi tải trạng thái toggle:", error);
       }
