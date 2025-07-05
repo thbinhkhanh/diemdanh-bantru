@@ -3,7 +3,7 @@ import {
   Box, Typography, Paper, Table, TableHead, TableBody,
   TableRow, TableCell, CircularProgress, Stack, Button,
   TableSortLabel, TableContainer, Select, MenuItem,
-  InputLabel, FormControl
+  InputLabel, FormControl, RadioGroup, FormControlLabel, Radio
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -15,25 +15,40 @@ import { format } from "date-fns";
 
 export default function NhatKyDiemDanh({ onBack }) {
   const today = new Date();
+
+  // Chế độ lọc: "ngay", "thang", "nam"
+  const [filterMode, setFilterMode] = useState("ngay");
+
   const [selectedDate, setSelectedDate] = useState(today);
   const [filterThang, setFilterThang] = useState(today.getMonth() + 1);
   const [filterNam, setFilterNam] = useState(today.getFullYear());
+
   const [dataList, setDataList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
   const [orderBy, setOrderBy] = useState("lop");
   const [order, setOrder] = useState("asc");
+
   const [filterKhoi, setFilterKhoi] = useState("Tất cả");
   const [filterLop, setFilterLop] = useState("Tất cả");
   const [danhSachLop, setDanhSachLop] = useState([]);
 
   const danhSachKhoi = ["Tất cả", "Khối 1", "Khối 2", "Khối 3", "Khối 4", "Khối 5"];
 
+  // Đồng bộ selectedDate khi đổi tháng hoặc năm (dùng cho filterMode != "ngay" để tránh ngày vượt quá tháng)
   useEffect(() => {
-    const newDate = new Date(filterNam, filterThang - 1, selectedDate.getDate());
+  if (filterMode === "ngay") {
+    const currentDay = selectedDate.getDate();
+    const maxDays = new Date(filterNam, filterThang, 0).getDate();
+    const safeDay = Math.min(currentDay, maxDays);
+    const newDate = new Date(filterNam, filterThang - 1, safeDay);
     setSelectedDate(newDate);
-  }, [filterThang, filterNam]);
+  }
+}, [filterThang, filterNam, filterMode]);
 
-  const fetchData = async () => {
+
+  // Hàm lấy dữ liệu theo filterMode
+    const fetchData = async () => {
     setIsLoading(true);
     try {
       const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
@@ -42,44 +57,85 @@ export default function NhatKyDiemDanh({ onBack }) {
       if (!namHocValue) {
         console.error("❌ Không tìm thấy năm học hiện tại!");
         setDataList([]);
+        setDanhSachLop([]);
         setIsLoading(false);
         return;
       }
 
-      const ngayKey = format(selectedDate, "yyyy-MM-dd");
-      const nhatKyDoc = await getDoc(doc(db, `NHATKY_${namHocValue}`, ngayKey));
+      let combinedData = [];
 
-      if (!nhatKyDoc.exists()) {
-        setDataList([]);
-        setDanhSachLop([]);
+      if (filterMode === "ngay") {
+        const ngayKey = format(selectedDate, "yyyy-MM-dd");
+        const nhatKyDoc = await getDoc(doc(db, `NHATKY_${namHocValue}`, ngayKey));
+        if (nhatKyDoc.exists()) {
+          const rawData = nhatKyDoc.data();
+          combinedData = Object.entries(rawData).map(([id, value]) => ({ id, ...value }));
+        }
       } else {
-        const rawData = nhatKyDoc.data();
-        const list = Object.entries(rawData).map(([id, value]) => ({
-          id,
-          ...value
-        }));
-        setDataList(list);
+        // Tháng hoặc năm
+        const datesToFetch = [];
 
-        const uniqueLop = [...new Set(list.map(item => item.lop).filter(Boolean))];
-        uniqueLop.sort((a, b) => {
-          const [numA, suffixA] = a.match(/^(\d+)(.*)/)?.slice(1) || [];
-          const [numB, suffixB] = b.match(/^(\d+)(.*)/)?.slice(1) || [];
-          if (numA !== numB) return +numA - +numB;
-          return (suffixA || "").localeCompare(suffixB || "", "vi", { sensitivity: "base" });
+        if (filterMode === "thang") {
+          const year = filterNam;
+          const month = filterThang - 1;
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+          for (let day = 1; day <= daysInMonth; day++) {
+            datesToFetch.push(new Date(year, month, day));
+          }
+        }
+
+        if (filterMode === "nam") {
+          const year = filterNam;
+          for (let month = 0; month < 12; month++) {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            for (let day = 1; day <= daysInMonth; day++) {
+              datesToFetch.push(new Date(year, month, day));
+            }
+          }
+        }
+
+        // Dùng Promise.all để load song song
+        const promises = datesToFetch.map((date) => {
+          const ngayKey = format(date, "yyyy-MM-dd");
+          const docRef = doc(db, `NHATKY_${namHocValue}`, ngayKey);
+          return getDoc(docRef).then((snapshot) => ({ snapshot, ngayKey }));
         });
-        setDanhSachLop(["Tất cả", ...uniqueLop]);
+
+        const results = await Promise.all(promises);
+
+        for (const { snapshot } of results) {
+          if (snapshot.exists()) {
+            const rawData = snapshot.data();
+            combinedData = combinedData.concat(
+              Object.entries(rawData).map(([id, value]) => ({ id, ...value }))
+            );
+          }
+        }
       }
+
+      setDataList(combinedData);
+
+      const uniqueLop = [...new Set(combinedData.map(item => item.lop).filter(Boolean))];
+      uniqueLop.sort((a, b) => {
+        const [numA] = a.match(/^(\d+)/) || [""];
+        const [numB] = b.match(/^(\d+)/) || [""];
+        return +numA - +numB;
+      });
+      setDanhSachLop(["Tất cả", ...uniqueLop]);
     } catch (err) {
       console.error("❌ Lỗi khi tải dữ liệu:", err);
       setDataList([]);
+      setDanhSachLop([]);
     } finally {
       setIsLoading(false);
     }
   };
 
+
   useEffect(() => {
     fetchData();
-  }, [selectedDate]);
+  }, [filterMode, selectedDate, filterThang, filterNam]);
 
   const handleSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -108,6 +164,7 @@ export default function NhatKyDiemDanh({ onBack }) {
       : hoB?.localeCompare(hoA, "vi", { sensitivity: "base" }) || 0;
   };
 
+  // Lọc dữ liệu theo Khối và Lớp
   const filteredData = dataList.filter((item) => {
     const lop = item.lop || "";
     const matchLop = filterLop === "Tất cả" || lop === filterLop;
@@ -129,10 +186,9 @@ export default function NhatKyDiemDanh({ onBack }) {
     if (value === "Tất cả") {
       setFilterLop("Tất cả");
     } else {
-      setFilterLop("Tất cả"); // vẫn giữ nguyên để đảm bảo lọc theo khối
+      setFilterLop("Tất cả");
     }
   };
-
 
   const handleLopChange = (value) => {
     setFilterLop(value);
@@ -150,85 +206,126 @@ export default function NhatKyDiemDanh({ onBack }) {
           fontWeight="bold"
           align="center"
           color="primary"
-          sx={{ mb: 5 }}
           sx={{ mb: 4, borderBottom: '3px solid #1976d2', pb: 1 }}
         >
           NHẬT KÝ ĐIỂM DANH
         </Typography>
+
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+          <FormControl component="fieldset">
+            <RadioGroup
+              row
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value)}
+            >
+              <FormControlLabel value="ngay" control={<Radio />} label="Ngày" />
+              <FormControlLabel value="thang" control={<Radio />} label="Tháng" />
+              <FormControlLabel value="nam" control={<Radio />} label="Năm" />
+            </RadioGroup>
+          </FormControl>
+        </Box>
+
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
           <Box
             sx={{
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              gap: 2,
               flexWrap: "wrap",
+              gap: 2,
               mb: 2,
             }}
           >
-            <DatePicker
-              label="Chọn ngày"
-              value={selectedDate}
-              onChange={(newValue) => setSelectedDate(newValue)}
-              slotProps={{
-                textField: {
-                  size: "small",
-                  sx: { width: 140 }, // vừa đủ hiển thị "04/07/2025"
-                },
-              }}
-            />
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-              <InputLabel>Tháng</InputLabel>
-              <Select
-                value={filterThang}
-                label="Tháng"
-                onChange={(e) => setFilterThang(Number(e.target.value))}
-              >
-                {[...Array(12)].map((_, i) => (
-                  <MenuItem key={i + 1} value={i + 1}>
-                    Tháng {i + 1}
-                  </MenuItem>
+            {filterMode === "ngay" && (
+              <DatePicker
+                label="Chọn ngày"
+                value={selectedDate}
+                onChange={(newValue) => setSelectedDate(newValue)}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    sx: { width: 140 },
+                  },
+                }}
+              />
+            )}
+
+            {filterMode === "thang" && (
+              <>
+                <FormControl size="small" sx={{ minWidth: 110, width: 110 }}>
+                  <InputLabel>Tháng</InputLabel>
+                  <Select
+                    value={filterThang}
+                    label="Tháng"
+                    onChange={(e) => setFilterThang(Number(e.target.value))}
+                  >
+                    {[...Array(12)].map((_, i) => (
+                      <MenuItem key={i + 1} value={i + 1}>
+                        Tháng {i + 1}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 90, width: 90 }}>
+                  <InputLabel>Năm</InputLabel>
+                  <Select
+                    value={filterNam}
+                    label="Năm"
+                    onChange={(e) => setFilterNam(Number(e.target.value))}
+                  >
+                    {[...Array(5)].map((_, i) => {
+                      const year = today.getFullYear() - i;
+                      return (
+                        <MenuItem key={year} value={year}>
+                          {year}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
+              </>
+            )}
+
+            {filterMode === "nam" && (
+              <FormControl size="small" sx={{ minWidth: 100, width: 100 }}>
+                <InputLabel>Năm</InputLabel>
+                <Select
+                  value={filterNam}
+                  label="Năm"
+                  onChange={(e) => setFilterNam(Number(e.target.value))}
+                >
+                  {[...Array(5)].map((_, i) => {
+                    const year = today.getFullYear() - i;
+                    return (
+                      <MenuItem key={year} value={year}>
+                        {year}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
+            )}
+
+            {/* Gộp thêm dropdown Khối và Lớp ở đây */}
+            <FormControl size="small" sx={{ minWidth: 100, width: 100 }}>
+              <InputLabel>Khối</InputLabel>
+              <Select value={filterKhoi} label="Khối" onChange={(e) => handleKhoiChange(e.target.value)}>
+                {danhSachKhoi.map((k) => (
+                  <MenuItem key={k} value={k}>{k}</MenuItem>
                 ))}
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-              <InputLabel>Năm</InputLabel>
-              <Select
-                value={filterNam}
-                label="Năm"
-                onChange={(e) => setFilterNam(Number(e.target.value))}
-              >
-                {[...Array(5)].map((_, i) => {
-                  const year = today.getFullYear() - i;
-                  return (
-                    <MenuItem key={year} value={year}>
-                      {year}
-                    </MenuItem>
-                  );
-                })}
+            <FormControl size="small" sx={{ minWidth: 100, width: 100 }}>
+              <InputLabel>Lớp</InputLabel>
+              <Select value={filterLop} label="Lớp" onChange={(e) => handleLopChange(e.target.value)}>
+                {danhSachLop.map((l) => (
+                  <MenuItem key={l} value={l}>{l}</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
         </LocalizationProvider>
-
-        <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Khối</InputLabel>
-            <Select value={filterKhoi} label="Khối" onChange={(e) => handleKhoiChange(e.target.value)}>
-              {danhSachKhoi.map((k) => (
-                <MenuItem key={k} value={k}>{k}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Lớp</InputLabel>
-            <Select value={filterLop} label="Lớp" onChange={(e) => handleLopChange(e.target.value)}>
-              {danhSachLop.map((l) => (
-                <MenuItem key={l} value={l}>{l}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
 
         {isLoading ? (
           <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
@@ -253,7 +350,7 @@ export default function NhatKyDiemDanh({ onBack }) {
             >
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#1976d2" }}>
-                  {[
+                  {[ 
                     { label: "STT", key: null },
                     { label: "HỌ VÀ TÊN", key: "hoTen" },
                     { label: "LỚP", key: "lop" },
@@ -282,45 +379,45 @@ export default function NhatKyDiemDanh({ onBack }) {
                         >
                           {label}
                         </TableSortLabel>
-                      ) : label}
+                      ) : (
+                        label
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sortedData.length === 0 ? (
+                {sortedData.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
-                      Không có dữ liệu điểm danh ngày này.
+                    <TableCell colSpan={5} sx={{ fontStyle: "italic" }}>
+                      Không có dữ liệu phù hợp
                     </TableCell>
                   </TableRow>
-                ) : (
-                  sortedData.map((row, index) => (
-                    <TableRow key={row.id}>
-                      <TableCell align="center">{index + 1}</TableCell>
-                      <TableCell className="hoten">{row.hoTen || "—"}</TableCell>
-                      <TableCell align="center">{row.lop || "—"}</TableCell>
-                      <TableCell align="center">
-                        {row.loai?.toUpperCase() === "P" ? "✅" : "❌"}
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.lydo?.trim() ? row.lydo : "Không rõ lý do"}
-                      </TableCell>
-                    </TableRow>
-                  ))
                 )}
+                {sortedData.map((item, index) => (
+                  <TableRow key={item.id || index}>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell className="hoten">{item.hoTen || ""}</TableCell>
+                    <TableCell>{item.lop || ""}</TableCell>
+                    <TableCell>
+                      {item.loai?.trim().toUpperCase() === "P" ? "✅" : "❌"}
+                    </TableCell>
+
+                    <TableCell>{item.lydo?.trim() ? item.lydo : "Không rõ lý do"}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
         )}
 
-        <Stack spacing={2} sx={{ mt: 4, alignItems: "center" }}>
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
           <Button onClick={onBack} color="secondary">
             ⬅️ Quay lại
           </Button>
-        </Stack>
+
+        </Box>
       </Paper>
     </Box>
   );
-
 }
