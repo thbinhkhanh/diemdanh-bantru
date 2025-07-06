@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { useMediaQuery, useTheme } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 
+
 export default function NhatKyGV() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -342,11 +343,23 @@ export default function NhatKyGV() {
         )}
 
         {/* Nút quay lại */}
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-          <Button onClick={() => navigate(-1)} color="secondary">
-            ⬅️ Quay lại
-          </Button>
-        </Box>
+
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+        <Button
+          onClick={() => {
+            const selectedClass = location.state?.lop;
+            const selectedLop = selectedClass?.split('.')[0]; // Tách lấy "1" từ "1.5"
+            if (selectedLop) {
+              navigate(`/lop${selectedLop}`, { state: { lop: selectedClass } });
+            } else {
+              navigate('/home'); // fallback nếu không có thông tin lớp
+            }
+          }}
+          color="secondary"
+        >
+          ⬅️ Quay lại
+        </Button>
+      </Box>
       </Paper>
     </Box>
   );
