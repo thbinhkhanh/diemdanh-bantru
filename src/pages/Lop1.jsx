@@ -299,9 +299,10 @@ export default function Lop1() {
   };
 
   return (
-  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 12 }}>
+  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8, backgroundColor: '#e3f2fd' }}>
     <Card
       sx={{
+        mt:4,
         p: { xs: 2, sm: 3, md: 4 },
         maxWidth: 470,
         width: '100%',

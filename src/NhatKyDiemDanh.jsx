@@ -432,7 +432,9 @@ export default function NhatKyDiemDanh({ onBack }) {
                     ) : (
                       sortedData.map((item, index) => (
                         <TableRow key={item.id || index}>
-                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>
+                            {sortedData.findIndex((d) => d.id === item.id) + 1}
+                          </TableCell>
                           <TableCell className="hoten">{item.hoTen || ""}</TableCell>
                           <TableCell>{item.lop || ""}</TableCell>
                           <TableCell>
