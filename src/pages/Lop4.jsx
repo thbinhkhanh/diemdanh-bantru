@@ -15,7 +15,11 @@ import { enrichStudents } from '../pages/ThanhPhan/enrichStudents';
 import { saveRegistrationChanges } from '../pages/ThanhPhan/saveRegistration';
 import { saveMultipleDiemDanh } from '../pages/ThanhPhan/saveDiemDanh';
 import { saveSingleDiemDanh } from '../pages/ThanhPhan/saveSingleDiemDanh';
+
 import { MySort } from '../utils/MySort';
+import { useNavigate } from 'react-router-dom';
+import NhatKyGV from '../NhatKyGV';
+
 
 export default function Lop4() {
   const location = useLocation();
@@ -42,6 +46,9 @@ export default function Lop4() {
 
   const [checkAllDiemDanh, setCheckAllDiemDanh] = useState(true);
   const [checkAllBanTru, setCheckAllBanTru] = useState(true);
+  const navigate = useNavigate();
+  const [radioValue, setRadioValue] = useState("DiemDanh");
+
 
   useEffect(() => {
     setExpandedRowId(null);
@@ -129,7 +136,6 @@ export default function Lop4() {
   fetchData();
 }, [namHoc, selectedClass]);
 
-
   const handleSave = async () => {
     if (!namHoc) return;
     setIsSaving(true);
@@ -153,6 +159,7 @@ export default function Lop4() {
       setIsSaving(false);
     }
   };
+
 
   const toggleDiemDanh = async (index) => {
     const updated = [...students];
@@ -190,15 +197,16 @@ export default function Lop4() {
     saveTimeout.current = setTimeout(handleSave, 2000);
   };
 
- const handleClassChange = async (event) => {
-  clearTimeout(saveTimeout.current);
-  const newClass = event.target.value;
-  setSelectedClass(newClass);
-  // Đợi cập nhật lớp xong rồi mới lưu
-  setTimeout(() => {
-    handleSave(); // handleSave đã có kiểm tra thay đổi, nên an toàn
-  }, 0);
-};
+   const handleClassChange = async (event) => {
+    clearTimeout(saveTimeout.current);
+    const newClass = event.target.value;
+    setSelectedClass(newClass);
+    // Đợi cập nhật lớp xong rồi mới lưu
+    //setTimeout(() => {
+      //handleSave(); // handleSave đã có kiểm tra thay đổi, nên an toàn
+    //}, 0);
+  };
+
 
   const handleVangCoPhepChange = (index, value) => {
     const updated = [...students];
@@ -559,6 +567,38 @@ export default function Lop4() {
             </Table>
           </TableContainer>
 
+        )}
+
+        {viewMode !== "bantru" && (
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => {
+              if (!selectedClass) {
+                alert('Vui lòng chọn lớp trước khi vào nhật ký!');
+                return;
+              }
+
+              navigate('/nhatky', { state: { lop: selectedClass } });
+            }}
+            sx={{
+              textTransform: 'none',
+              backgroundColor: '#1976d2', // Màu xanh (có thể dùng theme palette nếu thích)
+              color: '#fff',              // Chữ trắng
+              fontSize: '0.9rem',           // cỡ chữ lớn hơn
+              px: 3,                      // padding ngang lớn hơn
+              py: 0.6,      
+              mt: 3,
+              mb: 3,
+              mx: 'auto',                 // Căn giữa theo chiều ngang
+              display: 'block',           // Phải dùng display: block để mx: auto hoạt động
+              '&:hover': {
+                backgroundColor: '#1565c0' // Màu xanh đậm hơn khi hover
+              }
+            }}
+          >
+            Nhật ký điểm danh
+          </Button>
         )}
 
         {/* Thông báo lưu */}

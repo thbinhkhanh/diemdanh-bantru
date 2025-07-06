@@ -31,6 +31,7 @@ import About from './pages/About';
 import Footer from './pages/Footer';
 import HuongDan from './pages/HuongDan';
 import Login from './Login';
+import NhatKyGV from "./NhatKyGV";
 
 const Admin = lazy(() => import('./Admin'));
 
@@ -57,6 +58,7 @@ function App() {
           <Route path="/lop4" element={<PrivateRoute><Lop4 /></PrivateRoute>} />
           <Route path="/lop5" element={<PrivateRoute><Lop5 /></PrivateRoute>} />
           <Route path="/quanly" element={<PrivateRoute><QuanLy /></PrivateRoute>} />
+          <Route path="/nhatky" element={<PrivateRoute><NhatKyGV /></PrivateRoute>} />
 
           {/* Trang quản lý dùng lazy load */}
           <Route
