@@ -17,15 +17,17 @@ import LockIcon from '@mui/icons-material/Lock';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 import DeleteIcon from '@mui/icons-material/Delete';
-import BarChartIcon from '@mui/icons-material/BarChart';
+import HotelIcon from '@mui/icons-material/Hotel';
 import QueryStatsIcon from '@mui/icons-material/QueryStats';
-import TimelineIcon from '@mui/icons-material/Timeline';
+import BarChartIcon from '@mui/icons-material/BarChart';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import StorageIcon from '@mui/icons-material/Storage';
-import InsightsIcon from '@mui/icons-material/Insights';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
+
 
 // Components
 import ChotSoLieu from '../ChotSoLieu';
@@ -120,18 +122,18 @@ export default function QuanLy() {
     {
       label: 'BÁN TRÚ',
       functions: [
-        { code: 'TKNGAY', label: 'THỐNG KÊ NGÀY', icon: <BarChartIcon fontSize="large" />, color: '#7b1fa2' },
+        { code: 'TKNGAY', label: 'THỐNG KÊ NGÀY', icon: <HotelIcon fontSize="large" />, color: '#7b1fa2' },
         { code: 'TKTHANG', label: 'CHI TIẾT THÁNG', icon: <QueryStatsIcon fontSize="large" />, color: '#0097a7' },
-        { code: 'TKNAM', label: 'TỔNG HỢP NĂM', icon: <TimelineIcon fontSize="large" />, color: '#1976d2' },
+        { code: 'TKNAM', label: 'TỔNG HỢP NĂM', icon: <BarChartIcon fontSize="large" />, color: '#1976d2' },
       ],
     },
     {
       label: 'ĐIỂM DANH',
       functions: [
-        { code: 'DDNGAY', label: 'ĐIỂM DANH NGÀY', icon: <BarChartIcon fontSize="large" />, color: '#7b1fa2' },
+        { code: 'DDNGAY', label: 'ĐIỂM DANH NGÀY', icon: <FactCheckIcon fontSize="large" />, color: '#7b1fa2' },
         { code: 'DDTHANG', label: 'ĐIỂM DANH THÁNG', icon: <QueryStatsIcon fontSize="large" />, color: '#0097a7' },
-        { code: 'DDNAM', label: 'ĐIỂM DANH NĂM', icon: <TimelineIcon fontSize="large" />, color: '#1976d2' },
-        { code: 'NHATKY', label: 'NHẬT KÝ', icon: <InsightsIcon fontSize="large" />, color: '#ff6f00' },
+        { code: 'DDNAM', label: 'ĐIỂM DANH NĂM', icon: <BarChartIcon fontSize="large" />, color: '#1976d2' },
+        { code: 'NHATKY', label: 'NHẬT KÝ', icon: <MenuBookIcon fontSize="large" />, color: '#ff6f00' },
       ],
     },
     {

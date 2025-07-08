@@ -248,7 +248,7 @@ export default function Admin({ onCancel }) {
   return (
     <Box sx={{ minHeight: "100vh", backgroundColor: "#e3f2fd" }}>
       <Banner title="QUẢN TRỊ HỆ THỐNG" />
-      <Box sx={{ width: { xs: "95%", sm: 450 }, mx: "auto", mt: 3 }}>
+      <Box sx={{ width: { xs: "95%", sm: 650 }, mx: "auto", mt: 3 }}>
         <Card elevation={10} sx={{ p: 3, borderRadius: 4 }}>
           <Tabs
             value={tabIndex}
@@ -256,9 +256,12 @@ export default function Admin({ onCancel }) {
             variant="scrollable"
             scrollButtons="auto"
           >
-            <Tab label="⚙️ System" />
-            <Tab label="🗄️ Database" />
+            <Tab label="⚙️ SYSTEM" />
+            <Tab label="👤 ACCOUNT" />
+            <Tab label="💾 BACKUP & RESTORE" />
+            <Tab label="🧹 DELETE & RESET" />
           </Tabs>
+
 
           {/* Tab 0: System */}
           {tabIndex === 0 && (
@@ -276,10 +279,6 @@ export default function Admin({ onCancel }) {
                 </Select>
               </FormControl>
 
-              <Button variant="contained" color="info" onClick={handleInitNewYearData}>
-                🆕 Khởi tạo dữ liệu năm mới
-              </Button>
-
               <FormControl fullWidth>
                 <InputLabel>Loại tài khoản</InputLabel>
                 <Select value={selectedAccount} label="Loại tài khoản" onChange={(e) => setSelectedAccount(e.target.value)}>
@@ -296,6 +295,7 @@ export default function Admin({ onCancel }) {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />
+
               <Button
                 variant="contained"
                 color="warning"
@@ -303,10 +303,6 @@ export default function Admin({ onCancel }) {
                 startIcon={<LockResetIcon />}
               >
                 Đổi mật khẩu
-              </Button>
-
-              <Button variant="outlined" color="secondary" onClick={handleCreateAccounts}>
-                🆕 Tạo tài khoản mặc định
               </Button>
 
               <FormControl>
@@ -321,8 +317,20 @@ export default function Admin({ onCancel }) {
             </Stack>
           )}
 
-          {/* Tab 1: Database */}
           {tabIndex === 1 && (
+            <Stack spacing={3} mt={3} sx={{ maxWidth: 300, mx: "auto", width: "100%" }}>
+              <Button variant="contained" color="primary" onClick={handleInitNewYearData}>
+                🆕 Khởi tạo dữ liệu năm mới
+              </Button>
+
+              <Button variant="contained" color="primary" onClick={handleInitNewYearData}>
+                🆕 Tạo tài khoản mặc định
+              </Button>
+            </Stack>
+          )}
+
+          {/* Tab 1: Database */}
+          {tabIndex === 2 && (
             <Stack spacing={3} mt={3} sx={{ maxWidth: 300, mx: "auto", width: "100%" }}>
               <Divider><Typography fontWeight="bold">💾 Sao lưu & Phục hồi</Typography></Divider>
 
@@ -334,7 +342,11 @@ export default function Admin({ onCancel }) {
               <Button
                 variant="contained"
                 color="success"
-                onClick={() => backupFormat === "json" ? downloadBackupAsJSON() : downloadBackupAsExcel()}
+                onClick={() =>
+                  backupFormat === "json"
+                    ? downloadBackupAsJSON()
+                    : downloadBackupAsExcel()
+                }
               >
                 📥 Sao lưu ({backupFormat.toUpperCase()})
               </Button>
@@ -365,46 +377,74 @@ export default function Admin({ onCancel }) {
                 />
               </Button>
 
-              <Divider><Typography fontWeight="bold" color="error">🗑️ Xóa & Reset dữ liệu</Typography></Divider>
+              {(restoreProgress > 0) && (
+                <Box sx={{ mt: 2 }}>
+                  <LinearProgress
+                    variant="determinate"
+                    value={restoreProgress}
+                    sx={{ height: 10, borderRadius: 5 }}
+                  />
+                  <Typography variant="caption" align="center" display="block" mt={0.5}>
+                    Đang phục hồi... {restoreProgress}%
+                  </Typography>
+                </Box>
+              )}
+
+              {alertMessage && (
+                <Alert severity={alertSeverity} onClose={() => setAlertMessage("")}>
+                  {alertMessage}
+                </Alert>
+              )}
+            </Stack>
+          )}
+
+          {tabIndex === 3 && (
+            <Stack spacing={3} mt={3} sx={{ maxWidth: 300, mx: "auto", width: "100%" }}>
+              <Divider>
+                <Typography fontWeight="bold" color="error">🗑️ Xóa & Reset dữ liệu</Typography>
+              </Divider>
 
               <Button variant="contained" color="error" onClick={handleDeleteAll}>
                 🗑️ Xóa Database Firestore
               </Button>
 
               <Button variant="contained" color="primary" onClick={handleSetDefault}>
-                ♻️ Reset điểm danh
-              </Button>
-              
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={xoaTatCaDiemDanh}
-              >
-                🗑️ XÓA ĐIỂM DANH
+                ♻️ Reset bán trú
               </Button>
 
-              {(restoreProgress > 0 || deleteProgress > 0 || setDefaultProgress > 0) && (
+              <Button variant="contained" color="primary" onClick={xoaTatCaDiemDanh}>
+                ♻️ Reset điểm danh
+              </Button>
+
+              {(deleteProgress > 0 || setDefaultProgress > 0) && (
                 <Box sx={{ mt: 2 }}>
                   <LinearProgress
                     variant="determinate"
-                    value={restoreProgress || deleteProgress || setDefaultProgress}
+                    value={deleteProgress || setDefaultProgress}
                     sx={{ height: 10, borderRadius: 5 }}
                   />
                   <Typography variant="caption" align="center" display="block" mt={0.5}>
-                    {restoreProgress > 0
-                      ? `Đang phục hồi... ${restoreProgress}%`
-                      : deleteProgress > 0
-                        ? `Đang xóa... ${deleteProgress}%`
-                        : `Đang reset... ${setDefaultProgress}%`}
+                    {deleteProgress > 0
+                      ? `Đang xóa... ${deleteProgress}%`
+                      : `Đang reset... ${setDefaultProgress}%`}
                   </Typography>
                 </Box>
               )}
 
-              {alertMessage && <Alert severity={alertSeverity} onClose={() => setAlertMessage("")}>{alertMessage}</Alert>}
-              {deleteMessage && <Alert severity={deleteSeverity} onClose={() => setDeleteMessage("")}>{deleteMessage}</Alert>}
-              {setDefaultMessage && <Alert severity={setDefaultSeverity} onClose={() => setSetDefaultMessage("")}>{setDefaultMessage}</Alert>}
+              {deleteMessage && (
+                <Alert severity={deleteSeverity} onClose={() => setDeleteMessage("")}>
+                  {deleteMessage}
+                </Alert>
+              )}
+              {setDefaultMessage && (
+                <Alert severity={setDefaultSeverity} onClose={() => setSetDefaultMessage("")}>
+                  {setDefaultMessage}
+                </Alert>
+              )}
             </Stack>
           )}
+
+
         </Card>
       </Box>
     </Box>

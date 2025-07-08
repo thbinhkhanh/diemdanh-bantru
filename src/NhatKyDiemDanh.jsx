@@ -355,7 +355,7 @@ export default function NhatKyDiemDanh({ onBack }) {
                 <Paper
                   key={item.id || index}
                   elevation={2}
-                  sx={{ p: 2, borderRadius: 2 }}
+                  sx={{ p: 2, borderRadius: 2, borderLeft: '5px solid #1976d2' }}
                 >
                   <Typography fontWeight="bold" variant="subtitle1">
                     {index + 1}. {item.hoTen || ""}
