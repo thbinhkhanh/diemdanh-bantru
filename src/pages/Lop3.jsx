@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import NhatKyGV from '../NhatKyGV';
 
 import { useClassData } from '../context/ClassDataContext';
+import { useClassList } from '../context/ClassListContext';
 
 export default function Lop3() {
   const location = useLocation();
@@ -49,6 +50,7 @@ export default function Lop3() {
   const [checkAllBanTru, setCheckAllBanTru] = useState(true);
   const navigate = useNavigate();
   const [radioValue, setRadioValue] = useState("DiemDanh");
+  const { getClassList, setClassListForKhoi } = useClassList();
 
   const {
     classDataMap: classData,
@@ -108,12 +110,27 @@ export default function Lop3() {
     fetchNamHoc();
   }, []);
 
+  
   useEffect(() => {
     const fetchClassList = async () => {
       if (!namHoc) return;
 
+      const khoi = 'K3';
+      const cachedList = getClassList(khoi);
+
+      if (cachedList.length > 0) {
+        setClassList(cachedList);
+        const lopFromState = location.state?.lop;
+        if (lopFromState && cachedList.includes(lopFromState)) {
+          setSelectedClass(lopFromState);
+        } else {
+          setSelectedClass(cachedList[0]);
+        }
+        return;
+      }
+
       try {
-        const docRef = doc(db, `DANHSACH_${namHoc}`, 'K3');
+        const docRef = doc(db, `DANHSACH_${namHoc}`, khoi);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -121,12 +138,13 @@ export default function Lop3() {
           const list = data.list || [];
 
           setClassList(list);
+          setClassListForKhoi(khoi, list); // ✅ Lưu vào context
 
           const lopFromState = location.state?.lop;
           if (lopFromState && list.includes(lopFromState)) {
-            setSelectedClass(lopFromState); // ✅ Ưu tiên lớp được truyền về
+            setSelectedClass(lopFromState);
           } else if (list.length > 0) {
-            setSelectedClass(list[0]); // hoặc giữ lớp hiện tại nếu muốn
+            setSelectedClass(list[0]);
           }
         }
       } catch (err) {
@@ -136,6 +154,7 @@ export default function Lop3() {
 
     fetchClassList();
   }, [namHoc]);
+
 
 
   useEffect(() => {
@@ -299,9 +318,9 @@ export default function Lop3() {
   };
 
   return (
-   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8, backgroundColor: '#e3f2fd' }}>
-      <Card
-        sx={{
+  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8, backgroundColor: '#e3f2fd' }}>
+    <Card
+      sx={{
         mt:4,
         p: { xs: 2, sm: 3, md: 4 },
         maxWidth: 470,
