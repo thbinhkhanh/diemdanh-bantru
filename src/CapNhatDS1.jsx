@@ -7,7 +7,6 @@ import {
 import { collection, getDocs, doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { MySort } from './utils/MySort';
-import { customAlphabet } from 'nanoid';
 
 export default function CapNhatDS({ onBack }) {
   const [classList, setClassList] = useState([]);
@@ -28,7 +27,6 @@ export default function CapNhatDS({ onBack }) {
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
   const dangKyOptions = ["Đăng ký mới", "Hủy đăng ký", "Đăng ký lại"];
-  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -122,8 +120,8 @@ export default function CapNhatDS({ onBack }) {
         return;
       }
     } else {
-      if (!customHoTen.trim()) {
-        showSnackbar("⚠️ Vui lòng nhập họ tên!", "warning");
+      if (!customHoTen.trim() || !customMaDinhDanh.trim()) {
+        showSnackbar("⚠️ Vui lòng nhập đầy đủ họ tên và mã định danh!", "warning");
         setSaving(false);
         return;
       }
@@ -156,8 +154,8 @@ export default function CapNhatDS({ onBack }) {
 
         showSnackbar("✅ Cập nhật thành công!");
       } else {
-        const generatedMaDinhDanh = `${selectedClass}-${nanoid()}`;
-        const docRef = doc(db, `BANTRU_${namHocValue}`, generatedMaDinhDanh);
+        const maDinhDanh = customMaDinhDanh.trim();
+        const docRef = doc(db, `BANTRU_${namHocValue}`, maDinhDanh);
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {
@@ -181,7 +179,6 @@ export default function CapNhatDS({ onBack }) {
       setSaving(false);
     }
   };
-
 
 
 
@@ -260,10 +257,12 @@ export default function CapNhatDS({ onBack }) {
                     </Select>
                   </FormControl>
 
+                  <TextField label="Mã định danh" size="small" fullWidth value={selectedStudentData?.id || ""} InputProps={{ readOnly: true }} disabled sx={{ mb: 2 }} />
                 </>
               ) : (
                 <>
-                  <TextField label="Họ và tên" size="small" fullWidth value={customHoTen} onChange={(e) => { setCustomHoTen(e.target.value); if (snackbar.open) setSnackbar({ ...snackbar, open: false }); }} sx={{ mb: 2 }} />              
+                  <TextField label="Họ và tên" size="small" fullWidth value={customHoTen} onChange={(e) => { setCustomHoTen(e.target.value); if (snackbar.open) setSnackbar({ ...snackbar, open: false }); }} sx={{ mb: 2 }} />
+                  <TextField label="Mã định danh" size="small" fullWidth value={customMaDinhDanh} onChange={(e) => { setCustomMaDinhDanh(e.target.value); if (snackbar.open) setSnackbar({ ...snackbar, open: false }); }} sx={{ mb: 2 }} />
                 </>
               )}
 

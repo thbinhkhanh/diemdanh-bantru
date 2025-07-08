@@ -8,7 +8,6 @@ import { motion } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import { setDoc, doc, getDocs, getDoc, collection } from 'firebase/firestore';
 import { db } from './firebase';
-import { customAlphabet } from 'nanoid';
 
 export default function TaiDanhSach({ onBack }) {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -37,6 +36,7 @@ export default function TaiDanhSach({ onBack }) {
         console.error(err);
       }
     };
+
     fetchNamHoc();
   }, []);
 
@@ -93,14 +93,14 @@ export default function TaiDanhSach({ onBack }) {
           headerRow.push((cell?.v || '').toString().trim().toUpperCase());
         }
 
-        const expectedHeaders = ['STT', 'HỌ VÀ TÊN', 'LỚP', 'ĐĂNG KÝ'];
+        const expectedHeaders = ['STT', 'MÃ ĐỊNH DANH', 'HỌ VÀ TÊN', 'LỚP', 'ĐĂNG KÝ'];
         const isValidHeader = headerRow.length === expectedHeaders.length &&
           expectedHeaders.every((title, index) => headerRow[index] === title);
 
         if (!isValidHeader) {
           setLoading(false);
           setSuccess(false);
-          setMessage('❌ Dữ liệu không hợp lệ! Tiêu đề phải nằm ở hàng 3 và đúng định dạng: STT, HỌ VÀ TÊN, LỚP, ĐĂNG KÝ.');
+          setMessage('❌ Dữ liệu không hợp lệ! Tiêu đề phải nằm ở hàng 3 và đúng định dạng: STT, MÃ ĐỊNH DANH, HỌ VÀ TÊN, LỚP, ĐĂNG KÝ.');
           return;
         }
 
@@ -135,25 +135,26 @@ export default function TaiDanhSach({ onBack }) {
   const processStudentData = async (jsonData) => {
     const banTruCollection = `BANTRU_${namHoc}`;
     const danhSachCollection = `BANTRU_${namHoc}`;
-    
-    const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
-    const studentsNew = jsonData.map(row => {
-      const lop = row['LỚP']?.toString().trim().toUpperCase();
-      const randomId = nanoid();
-      const maDinhDanh = `${lop}-${randomId}`;  // Không có phần năm học
 
-      return {
+    const snapshot = await getDocs(collection(db, banTruCollection));
+    const existingIds = new Set(snapshot.docs.map(doc => doc.id));
+
+    const studentsNew = jsonData
+      .filter(row => {
+        const ma = row['MÃ ĐỊNH DANH']?.toString().trim();
+        return ma && !existingIds.has(ma);
+      })
+      .map(row => ({
         stt: row['STT'] || '',
-        maDinhDanh,
-        hoVaTen: row['HỌ VÀ TÊN']?.toString().trim(),
-        lop,
-        huyDangKy: row['ĐĂNG KÝ']?.toString().trim().toLowerCase() === 'x' ? 'T' : 'x',
-      };
-    });
+        maDinhDanh: row['MÃ ĐỊNH DANH']?.toString().trim(),
+        hoVaTen: row['HỌ VÀ TÊN'] || '',
+        lop: row['LỚP']?.toString().trim(),
+        huyDangKy: row['ĐĂNG KÝ']?.toString().trim().toLowerCase() === 'x' ? '' : 'x',
+      }));
 
     if (studentsNew.length === 0) {
       setSuccess(true);
-      setMessage('📌 Không có dữ liệu học sinh để thêm.');
+      setMessage('📌 Toàn bộ dữ liệu đã tồn tại trên hệ thống.');
       return;
     }
 
@@ -167,7 +168,7 @@ export default function TaiDanhSach({ onBack }) {
         await setDoc(doc(db, banTruCollection, student.maDinhDanh), student);
         successCount++;
       } catch (err) {
-        console.error(`❌ Lỗi khi ghi học sinh [${student.hoVaTen}]:`, err.message);
+        console.error(`❌ Lỗi khi ghi mã ${student.maDinhDanh}:`, err.message);
         errorCount++;
       }
 

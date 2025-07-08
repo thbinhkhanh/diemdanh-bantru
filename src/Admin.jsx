@@ -181,7 +181,7 @@ export default function Admin({ onCancel }) {
   };
 
   const handleSetDefault = async () => {
-    const confirmed = window.confirm("⚠️ Bạn có chắc muốn reset điểm danh?");
+    const confirmed = window.confirm("⚠️ Bạn có chắc muốn reset đăng ký bán trú?");
     if (!confirmed) return;
 
     try {
@@ -322,11 +322,19 @@ export default function Admin({ onCancel }) {
             <Stack spacing={3} mt={3} sx={{ maxWidth: 300, mx: "auto", width: "100%" }}>
               <Divider> <Typography fontWeight="bold">👤 Database & Account</Typography> </Divider>
               
-              <Button variant="contained" color="primary" onClick={handleInitNewYearData}>
+              <Button
+                variant="contained"
+                onClick={handleInitNewYearData}
+                sx={{ backgroundColor: '#303f9f', '&:hover': { backgroundColor: '#2e7d32' } }}
+              >
                 🆕 Tạo Database năm mới
               </Button>
 
-              <Button variant="contained" color="primary" onClick={handleInitNewYearData}>
+              <Button
+                variant="contained"
+                onClick={handleInitNewYearData}
+                sx={{ backgroundColor: '#303f9f', '&:hover': { backgroundColor: '#2e7d32' } }}
+              >
                 🆕 Tạo tài khoản người dùng
               </Button>
             </Stack>
@@ -338,8 +346,10 @@ export default function Admin({ onCancel }) {
               <Divider><Typography fontWeight="bold">💾 Sao lưu & Phục hồi</Typography></Divider>
 
               <RadioGroup row value={backupFormat} onChange={(e) => setBackupFormat(e.target.value)}>
-                <FormControlLabel value="json" control={<Radio />} label="JSON" />
-                <FormControlLabel value="excel" control={<Radio />} label="Excel" />
+                <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                  <FormControlLabel value="json" control={<Radio />} label="JSON" />
+                  <FormControlLabel value="excel" control={<Radio />} label="Excel" />
+                </Box>
               </RadioGroup>
 
               <Button
@@ -404,18 +414,18 @@ export default function Admin({ onCancel }) {
           {tabIndex === 3 && (
             <Stack spacing={3} mt={3} sx={{ maxWidth: 300, mx: "auto", width: "100%" }}>
               <Divider>
-                <Typography fontWeight="bold" color="error">🗑️ Xóa & Reset dữ liệu</Typography>
+                <Typography fontWeight="bold" >🗑️ Xóa & Reset dữ liệu</Typography>
               </Divider>
 
               <Button variant="contained" color="error" onClick={handleDeleteAll}>
-                🗑️ Xóa Database Firestore
+                🗑️ Xóa dữ liệu bán trú
               </Button>
 
-              <Button variant="contained" color="primary" onClick={handleSetDefault}>
-                ♻️ Reset bán trú
+              <Button variant="contained" color="warning" onClick={handleSetDefault}>
+                ♻️ Reset đăng ký bán trú
               </Button>
 
-              <Button variant="contained" color="primary" onClick={xoaTatCaDiemDanh}>
+              <Button variant="contained" color="warning" onClick={xoaTatCaDiemDanh}>
                 ♻️ Reset điểm danh
               </Button>
 
