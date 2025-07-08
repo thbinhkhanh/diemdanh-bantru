@@ -270,7 +270,7 @@ export default function Admin({ onCancel }) {
                 🏫 HỆ THỐNG QUẢN LÝ BÁN TRÚ
               </Button>
 
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Năm học</InputLabel>
                 <Select value={selectedYear} label="Năm học" onChange={(e) => handleYearChange(e.target.value)}>
                   {yearOptions.map((year) => (
@@ -279,7 +279,7 @@ export default function Admin({ onCancel }) {
                 </Select>
               </FormControl>
 
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Loại tài khoản</InputLabel>
                 <Select value={selectedAccount} label="Loại tài khoản" onChange={(e) => setSelectedAccount(e.target.value)}>
                   <MenuItem value="yte">🏥 Y tế</MenuItem>
@@ -293,6 +293,7 @@ export default function Admin({ onCancel }) {
                 label="🔑 Mật khẩu mới"
                 type="password"
                 value={newPassword}
+                size="small"
                 onChange={(e) => setNewPassword(e.target.value)}
               />
 
@@ -319,12 +320,14 @@ export default function Admin({ onCancel }) {
 
           {tabIndex === 1 && (
             <Stack spacing={3} mt={3} sx={{ maxWidth: 300, mx: "auto", width: "100%" }}>
+              <Divider> <Typography fontWeight="bold">👤 Database & Account</Typography> </Divider>
+              
               <Button variant="contained" color="primary" onClick={handleInitNewYearData}>
-                🆕 Khởi tạo dữ liệu năm mới
+                🆕 Tạo Database năm mới
               </Button>
 
               <Button variant="contained" color="primary" onClick={handleInitNewYearData}>
-                🆕 Tạo tài khoản mặc định
+                🆕 Tạo tài khoản người dùng
               </Button>
             </Stack>
           )}
