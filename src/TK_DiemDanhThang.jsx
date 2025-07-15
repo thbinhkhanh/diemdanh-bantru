@@ -13,10 +13,23 @@ import { getDoc, getDocs, doc, collection, query, where } from "firebase/firesto
 import { format } from "date-fns";
 import { db } from "./firebase";
 import { MySort } from './utils/MySort';
-import { exportThongKeThangToExcel } from './utils/exportThongKeThang';
+import { exportDiemDanhThang } from './utils/exportDiemDanhThang';
 import { useClassList } from "./context/ClassListContext";
 import { useClassData } from "./context/ClassDataContext";
 import { enrichStudents } from "./pages/ThanhPhan/enrichStudents";
+
+// ✅ Hàm formatDiemDangThang tích hợp bên trong file
+const formatDiemDangThang = (dataList, daySet) => {
+  return dataList.map(item => {
+    const percentNghi = item.total && daySet.length
+      ? Math.round((item.total / daySet.length) * 100)
+      : 0;
+    return {
+      ...item,
+      percentNghi,
+    };
+  });
+};
 
 export default function DiemDanhThang({ onBack }) {
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -34,7 +47,13 @@ export default function DiemDanhThang({ onBack }) {
   const { getClassList, setClassListForKhoi } = useClassList();
   const { getClassData, setClassData } = useClassData();
 
-  // Load danh sách lớp khi mount
+  const headCellStyle = {
+    fontWeight: "bold",
+    backgroundColor: theme.palette.grey[200],
+    border: "1px solid #ccc",
+  };
+
+
   useEffect(() => {
     const fetchClassList = async () => {
       try {
@@ -42,7 +61,6 @@ export default function DiemDanhThang({ onBack }) {
         const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
         if (!namHocValue) {
-          setIsLoading(false);
           console.error("❌ Không tìm thấy năm học hợp lệ trong hệ thống!");
           return;
         }
@@ -72,14 +90,12 @@ export default function DiemDanhThang({ onBack }) {
     fetchClassList();
   }, []);
 
-  // Hàm xử lý dữ liệu học sinh + thống kê bán trú, rồi set dataList
+  // ✅ Xử lý dữ liệu học sinh
   const processStudentData = (rawStudents, diemDanhData, className, selectedDate) => {
     const selectedDateStr = format(selectedDate, "yyyy-MM");
 
-    // ✅ enrich từ dữ liệu gốc
     const enriched = enrichStudents(rawStudents, selectedDateStr, className, true);
 
-    // ✅ gắn trạng thái registered
     const enrichedWithRegister = enriched.map((s, index) => {
       const ma = s.maDinhDanh;
       const daySummary = {};
@@ -96,10 +112,9 @@ export default function DiemDanhThang({ onBack }) {
           if (!isNaN(dateObj)) {
             const day = dateObj.getDate();
             daySummary[day] = {
-              phep: record.phep, // true/false hoặc undefined
+              phep: record.phep,
               lyDo: record.lyDo || ""
             };
-
             total += 1;
           }
         }
@@ -118,10 +133,12 @@ export default function DiemDanhThang({ onBack }) {
       stt: idx + 1
     }));
 
-    setDataList(sorted);
+    // ✅ Gọi formatDiemDangThang ở đây
+    const formatted = formatDiemDangThang(sorted, daySet);
+
+    setDataList(formatted);
   };
 
-  // Load học sinh khi selectedClass hoặc selectedDate thay đổi
   useEffect(() => {
     if (!selectedClass || !selectedDate) return;
 
@@ -131,16 +148,12 @@ export default function DiemDanhThang({ onBack }) {
         const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
         const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
         if (!namHocValue) {
-          setIsLoading(false);
           console.error("❌ Không tìm thấy năm học!");
           return;
         }
 
         let rawData = getClassData(selectedClass);
-        if (Array.isArray(rawData) && rawData.length > 0) {
-          // ✅ Dữ liệu lấy từ context
-        } else {
-          // 🌐 Tải dữ liệu học sinh từ Firestore
+        if (!Array.isArray(rawData) || rawData.length === 0) {
           const danhSachSnap = await getDocs(query(
             collection(db, `DANHSACH_${namHocValue}`),
             where("lop", "==", selectedClass)
@@ -149,26 +162,16 @@ export default function DiemDanhThang({ onBack }) {
 
           const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
           const enriched = enrichStudents(danhSachData, selectedDateStr, selectedClass, true);
-
-          // ✅ Gán id nếu chưa có
           const enrichedWithId = enriched.map(hs => ({
             ...hs,
             id: hs.maDinhDanh || hs.id || hs.uid || `missing-${Math.random().toString(36).substring(2)}`
           }));
-
           setClassData(selectedClass, enrichedWithId);
           rawData = enrichedWithId;
         }
 
-        if (!Array.isArray(rawData)) {
-          console.warn("⚠️ Dữ liệu học sinh không hợp lệ:", rawData);
-          return;
-        }
-
         const diemDanhSnap = await getDocs(collection(db, `DIEMDANH_${namHocValue}`));
         const diemDanhData = diemDanhSnap.docs.map(doc => doc.data());
-
-        processStudentData(rawData, diemDanhData, selectedClass, selectedDate);
 
         const year = selectedDate.getFullYear();
         const month = selectedDate.getMonth();
@@ -176,6 +179,7 @@ export default function DiemDanhThang({ onBack }) {
         const fullDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
         setDaySet(fullDays);
 
+        processStudentData(rawData, diemDanhData, selectedClass, selectedDate);
       } catch (err) {
         console.error("❌ Lỗi khi tải dữ liệu:", err);
       } finally {
@@ -184,22 +188,10 @@ export default function DiemDanhThang({ onBack }) {
     };
 
     fetchStudents();
-  }, [selectedClass, selectedDate, getClassData, setClassData]);
-
-
-
-  const headCellStyle = {
-    fontWeight: "bold",
-    backgroundColor: "#1976d2",
-    color: "white",
-    border: "1px solid #ccc",
-    whiteSpace: "nowrap",
-    textAlign: "center",
-    px: 1,
-  };
+  }, [selectedClass, selectedDate]);
 
   const handleExport = () => {
-    exportThongKeThangToExcel(dataList, selectedDate, selectedClass, daySet);
+    exportDiemDanhThang(dataList, selectedDate, selectedClass, daySet);
   };
 
   return (

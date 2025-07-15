@@ -1,11 +1,16 @@
-import * as XLSX from 'sheetjs-style';
+import * as XLSX from 'sheetjs-style'; // dùng sheetjs-style để hỗ trợ style cho cell
 
-export function exportThongKeNamToExcel(dataList, selectedYear, selectedClass, monthSet) {
+export function exportBanTruNam(dataList, selectedYear, selectedClass, monthSet) {
+  if (!dataList || dataList.length === 0) return;
+
+  // Đảm bảo monthSet là mảng
+  if (!Array.isArray(monthSet)) {
+    monthSet = Array.from(monthSet || []);
+  }
+
   const title1 = 'TRƯỜNG TIỂU HỌC BÌNH KHÁNH';
   const title2 = `THỐNG KÊ BÁN TRÚ NĂM ${selectedYear}`;
   const title3 = `LỚP: ${selectedClass}`;
-
-  if (!dataList || dataList.length === 0) return;
 
   const headerRow = ['STT', 'HỌ VÀ TÊN', ...monthSet.map(m => `Tháng ${m}`), 'TỔNG'];
 
@@ -14,19 +19,23 @@ export function exportThongKeNamToExcel(dataList, selectedYear, selectedClass, m
     let total = 0;
     monthSet.forEach(month => {
       const val = item.monthSummary?.[month] || 0;
-      row.push(val === 0 ? "" : val); // 👈 Bỏ 0
+      row.push(val === 0 ? "" : val);
       total += val;
     });
-    row.push(total === 0 ? "" : total); // 👈 Bỏ tổng 0
+    row.push(total === 0 ? "" : total);
     return row;
   });
 
   const totalRow = ['TỔNG', ''];
+  let totalOfTotals = 0;
+
   monthSet.forEach(month => {
     const sum = dataList.reduce((acc, cur) => acc + (cur.monthSummary?.[month] || 0), 0);
-    totalRow.push(sum === 0 ? "" : sum); // 👈 Bỏ tổng tháng 0
+    totalRow.push(sum === 0 ? "" : sum);
+    totalOfTotals += sum;
   });
-  totalRow.push('');
+
+  totalRow.push(totalOfTotals === 0 ? "" : totalOfTotals);
 
   const finalData = [
     [title1],
@@ -40,6 +49,7 @@ export function exportThongKeNamToExcel(dataList, selectedYear, selectedClass, m
 
   const ws = XLSX.utils.aoa_to_sheet(finalData);
 
+  // Column width
   ws['!cols'] = [
     { wch: 5 },
     { wch: 27.5 },
@@ -48,13 +58,17 @@ export function exportThongKeNamToExcel(dataList, selectedYear, selectedClass, m
   ];
 
   const totalCols = headerRow.length;
+  const totalRows = finalData.length;
+
+  // Merge tiêu đề và dòng tổng
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
     { s: { r: 2, c: 0 }, e: { r: 2, c: totalCols - 1 } },
-    { s: { r: finalData.length - 1, c: 0 }, e: { r: finalData.length - 1, c: 1 } }
+    { s: { r: totalRows - 1, c: 0 }, e: { r: totalRows - 1, c: 1 } }
   ];
 
+  // Styling cells
   const range = XLSX.utils.decode_range(ws['!ref']);
   for (let R = 0; R <= range.e.r; ++R) {
     for (let C = 0; C <= range.e.c; ++C) {

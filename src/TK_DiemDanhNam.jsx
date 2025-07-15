@@ -11,7 +11,7 @@ import vi from "date-fns/locale/vi";
 import { getDoc, getDocs, doc, collection, query, where } from "firebase/firestore";
 import { db } from "./firebase";
 import { MySort } from "./utils/MySort";
-import { exportThongKeNamDiemDanh } from './utils/exportThongKeNamDiemDanh';
+import { exportDiemDanhNam } from './utils/exportDiemDanhNam';
 import { useClassList } from "./context/ClassListContext";
 import { useClassData } from "./context/ClassDataContext"; 
 import { enrichStudents } from "./pages/ThanhPhan/enrichStudents";
@@ -146,9 +146,17 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
         const diemDanhByStudent = {};
         diemDanhSnapshot.forEach(docSnap => {
           const d = docSnap.data();
+
+          // 🛠 Sửa bắt đầu từ đây:
+          const dateObj = new Date(d.ngay);
+          if (isNaN(dateObj)) {
+            console.warn("❌ Ngày điểm danh không hợp lệ:", d.ngay);
+            return; // Bỏ qua bản ghi sai
+          }
+
+          const thang = dateObj.getMonth() + 1;
           const maDinhDanh = d.maDinhDanh;
           const phep = d.phep;
-          const thang = new Date(d.ngay).getMonth() + 1;
 
           if (!maDinhDanh || !thang) return;
 
@@ -164,6 +172,14 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
 
           diemDanhByStudent[maDinhDanh][thang][type]++;
         });
+        // ✅ Đặt đoạn log ngay tại đây!
+        console.log("📌 Danh sách điểm danh tháng 7:");
+        Object.entries(diemDanhByStudent).forEach(([id, monthData]) => {
+          if (monthData[7]) {
+            console.log(`👤 ${id}: P=${monthData[7].P}, K=${monthData[7].K}`);
+          }
+        });
+
 
         //console.log("🔑 Tổng mã học sinh có điểm danh:", Object.keys(diemDanhByStudent));
 
@@ -226,7 +242,7 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
   };
 
   const handleExport = () => {
-    exportThongKeNamDiemDanh(dataList, selectedDate.getFullYear(), selectedClass, monthSet);
+    exportDiemDanhNam(dataList, selectedDate.getFullYear(), selectedClass, monthSet);
   };
 
   return (

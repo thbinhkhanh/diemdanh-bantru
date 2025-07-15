@@ -13,7 +13,7 @@ import { getDoc, getDocs, doc, collection, query, where } from "firebase/firesto
 import { format } from "date-fns";
 import { db } from "./firebase";
 import { MySort } from './utils/MySort';
-import { exportThongKeThangToExcel } from './utils/exportThongKeThang';
+import { exportBanTruThang } from './utils/exportBanTruThang';
 import { useClassList } from "./context/ClassListContext";
 import { useClassData } from "./context/ClassDataContext";
 import { enrichStudents } from "./pages/ThanhPhan/enrichStudents";
@@ -193,7 +193,7 @@ export default function ThongKeThang({ onBack }) {
   };
 
   const handleExport = () => {
-    exportThongKeThangToExcel(dataList, selectedDate, selectedClass, daySet);
+    exportBanTruThang(dataList, selectedDate, selectedClass, daySet);
   };
 
   return (

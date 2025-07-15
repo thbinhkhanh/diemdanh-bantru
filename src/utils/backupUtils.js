@@ -4,13 +4,14 @@ import {
   getDocs,
   Timestamp,
   doc,
-  setDoc,
+  //setDoc,
   getDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { formatExcel } from "./formatExcel.js";
+import { formatExcel_Backup } from "./formatExcel_Backup.js";
 
-import * as XLSX from "xlsx";
+
+//import * as XLSX from "xlsx";
 
 /** 🎯 Sao lưu toàn bộ Firestore sang JSON theo năm học */
 export const downloadBackupAsJSON = async (selectedDataTypes) => {
@@ -136,7 +137,8 @@ export const downloadBackupAsExcel = async (selectedDataTypes) => {
     const columnDates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
     const selectedClass = "Tất cả";
 
-    formatExcel(rawDocs, columnDates, namHocValue, selectedClass);
+    formatExcel_Backup(rawDocs, columnDates, namHocValue, selectedClass);
+    
   } catch (error) {
     console.error("❌ Lỗi khi tạo file Excel:", error);
     alert("❌ Không thể sao lưu dữ liệu Excel.");

@@ -1,13 +1,14 @@
-import * as XLSX from "sheetjs-style";
 
-export function exportThongKeThangToExcel(dataList, selectedDate, selectedClass, daySet) {
+import * as XLSX from 'sheetjs-style';
+
+export function exportDiemDanhThang(dataList, selectedDate, selectedClass, daySet) {
   const month = selectedDate.getMonth() + 1;
   const year = selectedDate.getFullYear();
 
   if (!dataList || dataList.length === 0) return;
 
   const title1 = "TRƯỜNG TIỂU HỌC BÌNH KHÁNH";
-  const title2 = `THỐNG KÊ BÁN TRÚ THÁNG ${month} NĂM ${year}`;
+  const title2 = `THỐNG KÊ ĐIỂM DANH THÁNG ${month} NĂM ${year}`;
   const title3 = `LỚP: ${selectedClass}`;
 
   const headerRow = ["STT", "HỌ VÀ TÊN", ...daySet.map((d) => `${d}`), "TỔNG CỘNG"];
@@ -15,9 +16,13 @@ export function exportThongKeThangToExcel(dataList, selectedDate, selectedClass,
   const dataRows = dataList.map((item, index) => {
     const row = [index + 1, item.hoVaTen];
     daySet.forEach((day) => {
-      const val = item.daySummary?.[day] || 0;
-      row.push(val === 0 ? "" : val);
+      const info = item.daySummary?.[day];
+      const phep = info?.phep;
+      const loai = phep === true ? "P" : phep === false ? "K" : "";
+      row.push(loai);
     });
+
+
     row.push(item.total === 0 ? "" : item.total);
     return row;
   });
@@ -122,5 +127,5 @@ export function exportThongKeThangToExcel(dataList, selectedDate, selectedClass,
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `Tháng ${month}`);
-  XLSX.writeFile(wb, `ThongKe_Thang${month}_${selectedClass}.xlsx`);
+  XLSX.writeFile(wb, `DiemDanh_Thang${month}_${selectedClass}.xlsx`);
 }
