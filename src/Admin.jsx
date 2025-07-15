@@ -56,6 +56,7 @@ export default function Admin({ onCancel }) {
 
   const [showBackupOptions, setShowBackupOptions] = useState(false);
   const [showRestoreOptions, setShowRestoreOptions] = useState(false);
+  const [showDeleteOptions, setShowDeleteOptions] = useState(false);
 
   const [resetProgress, setResetProgress] = useState(0);
   const [resetMessage, setResetMessage] = useState("");
@@ -71,6 +72,19 @@ export default function Admin({ onCancel }) {
     bantru: false,
     diemdan: false,
   });
+
+  const [deleteCollections, setDeleteCollections] = useState({
+    danhsach: false,
+    bantru: false,
+    diemdan: false,
+  });
+
+  const handleDeleteCheckboxChange = (key) => {
+    setDeleteCollections((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
   const [restoreMode, setRestoreMode] = useState("all"); // "all" hoặc "check"
   
@@ -221,6 +235,7 @@ export default function Admin({ onCancel }) {
   };
 
   const handleResetDangKyBanTru = async () => {
+    //setShowDeleteOptions(false); // 👈 đặt ở đây
     const confirmed = window.confirm("⚠️ Bạn có chắc chắn muốn reset đăng ký bán trú?");
     if (!confirmed) return;
 
@@ -282,9 +297,8 @@ export default function Admin({ onCancel }) {
     }
   };
 
-
-
   const handleResetDiemDanh = async () => {
+    //setShowDeleteOptions(false); // 👈 đặt ở đây
     const confirmed = window.confirm("⚠️ Bạn có chắc chắn muốn reset điểm danh?");
     if (!confirmed) return;
 
@@ -341,6 +355,52 @@ export default function Admin({ onCancel }) {
       setResetSeverity("error");
     } finally {
       setTimeout(() => setResetProgress(0), 3000);
+    }
+  };
+
+  const handlePerformDelete = async () => {
+    const { danhsach, bantru, diemdan } = deleteCollections;
+    const namHocValue = selectedYear;
+
+    if (!danhsach && !bantru && !diemdan) {
+      alert("⚠️ Vui lòng chọn ít nhất một loại dữ liệu để xóa.");
+      return;
+    }
+
+    const confirmed = window.confirm("⚠️ Bạn có chắc chắn muốn xóa dữ liệu đã chọn?");
+    if (!confirmed) return;
+
+    try {
+      if (danhsach) {
+        const snap = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
+        for (const doc of snap.docs) {
+          await setDoc(doc.ref, {}, { merge: false });
+        }
+        console.log("✅ Đã xóa DANHSACH");
+      }
+
+      if (diemdan) {
+        const snap = await getDocs(collection(db, `DIEMDANH_${namHocValue}`));
+        for (const doc of snap.docs) {
+          await setDoc(doc.ref, {}, { merge: false });
+        }
+        console.log("✅ Đã xóa DIEMDANH");
+      }
+
+      if (bantru) {
+        const snap = await getDocs(collection(db, `BANTRU_${namHocValue}`));
+        for (const doc of snap.docs) {
+          await setDoc(doc.ref, {}, { merge: false });
+        }
+        console.log("✅ Đã xóa BANTRU");
+      }
+
+      alert("✅ Đã xóa thành công các dữ liệu đã chọn.");
+      setDeleteCollections({ danhsach: false, bantru: false, diemdan: false });
+      setShowDeleteOptions(false);
+    } catch (err) {
+      console.error("❌ Lỗi khi xóa dữ liệu:", err);
+      alert("❌ Có lỗi xảy ra khi xóa.");
     }
   };
 
@@ -703,10 +763,38 @@ export default function Admin({ onCancel }) {
                 <Typography fontWeight="bold">🗑️ Xóa & Reset dữ liệu</Typography>
               </Divider>
 
-              {/* Nút thao tác */}
-              <Button variant="contained" color="error" onClick={handleDeleteAll}>
-                🗑️ Xóa dữ liệu bán trú
+              {/* Nút bật/tắt nhóm checkbox + thực hiện xóa */}
+              <Button variant="contained" color="error" onClick={() => {
+                setShowDeleteOptions(prev => !prev);
+                setDeleteCollections({ danhsach: false, bantru: false, diemdan: false });
+              }}>
+                🗑️ Xóa Database
               </Button>
+
+              {/* ✅ Khối checkbox + nút thực hiện xóa */}
+              {showDeleteOptions && (
+                <>
+                  <FormGroup>
+                    <FormControlLabel
+                      control={<Checkbox checked={deleteCollections.danhsach} onChange={() => handleDeleteCheckboxChange("danhsach")} />}
+                      label="Danh sách"
+                    />                    
+                    <FormControlLabel
+                      control={<Checkbox checked={deleteCollections.bantru} onChange={() => handleDeleteCheckboxChange("bantru")} />}
+                      label="Bán trú"
+                    />
+                    <FormControlLabel
+                      control={<Checkbox checked={deleteCollections.diemdan} onChange={() => handleDeleteCheckboxChange("diemdan")} />}
+                      label="Điểm danh"
+                    />
+                  </FormGroup>
+
+                  <Button variant="contained" color="primary" sx={{ mt: 1 }} onClick={handlePerformDelete}>
+                    ❌ Thực hiện xóa dữ liệu
+                  </Button>
+                </>
+              )}
+
 
               <Button variant="contained" color="warning" onClick={handleResetDangKyBanTru}>
                 ♻️ Reset bán trú
