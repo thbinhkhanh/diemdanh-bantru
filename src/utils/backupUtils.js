@@ -9,12 +9,12 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { formatExcel } from "./formatExcel.js";
+
 import * as XLSX from "xlsx";
 
 /** 🎯 Sao lưu toàn bộ Firestore sang JSON theo năm học */
-export const downloadBackupAsJSON = async () => {
+export const downloadBackupAsJSON = async (selectedDataTypes) => {
   try {
-    // 📌 Lấy năm học từ Firestore
     const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
     const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
@@ -23,7 +23,17 @@ export const downloadBackupAsJSON = async () => {
       return;
     }
 
-    const collectionsToBackup = [`BANTRU_${namHocValue}`, `DANHSACH_${namHocValue}`];
+    // 🔍 Lấy tên collection theo lựa chọn
+    const collectionsToBackup = [];
+    if (selectedDataTypes.bantru) collectionsToBackup.push(`BANTRU_${namHocValue}`);
+    if (selectedDataTypes.danhsach) collectionsToBackup.push(`DANHSACH_${namHocValue}`);
+    if (selectedDataTypes.diemdan) collectionsToBackup.push(`DIEMDANH_${namHocValue}`);
+
+    if (collectionsToBackup.length === 0) {
+      alert("⚠️ Vui lòng chọn ít nhất một loại dữ liệu để sao lưu JSON.");
+      return;
+    }
+
     const backupContent = {};
 
     for (const colName of collectionsToBackup) {
@@ -35,7 +45,9 @@ export const downloadBackupAsJSON = async () => {
         const converted = {};
 
         for (const [key, value] of Object.entries(rawData)) {
-          converted[key] = value instanceof Timestamp ? value.toDate().toISOString() : value;
+          converted[key] = value instanceof Timestamp
+            ? value.toDate().toISOString()
+            : value;
         }
 
         backupContent[colName][docSnap.id] = converted;
@@ -56,10 +68,9 @@ export const downloadBackupAsJSON = async () => {
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
 
-    const filename = `Backup Firestore_${namHocValue} (${day}_${month}_${year} ${hours}_${minutes}).json`;
+    const filename = `Backup_${namHocValue} (${day}_${month}_${year} ${hours}_${minutes}).json`;
     link.download = filename;
     link.click();
-
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     console.log("✅ Đã tạo file JSON sao lưu!");
   } catch (error) {
@@ -68,9 +79,15 @@ export const downloadBackupAsJSON = async () => {
   }
 };
 
+
 /** 📥 Sao lưu dữ liệu ra Excel (.xlsx) theo năm học */
-export const downloadBackupAsExcel = async () => {
+export const downloadBackupAsExcel = async (selectedDataTypes) => {
   try {
+    if (!selectedDataTypes.bantru) {
+      alert("⚠️ Chỉ hỗ trợ sao lưu dữ liệu Bán trú dưới dạng Excel.");
+      return;
+    }
+
     const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
     const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 

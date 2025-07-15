@@ -11,7 +11,7 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import vi from "date-fns/locale/vi";
 import { db } from "./firebase";
-import { collection, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, getDoc, writeBatch } from "firebase/firestore";
 
 // ======= Xử lý nhóm dữ liệu =======
 function groupData(data) {
@@ -21,62 +21,62 @@ function groupData(data) {
 
   data.forEach(item => {
     const lop = item.lop?.toString().trim();
-    const khoi = lop?.split(".")[0];
-    const huyDK = (item.huyDangKy || "").toUpperCase();
+    const khoi = item.khoi?.toString().trim();
+    const anBanTru = item.huyDangKy === true;
 
     if (!lop || !khoi) return;
 
-    khoiData[khoi] = khoiData[khoi] || {
-      group: `KHỐI ${khoi}`,
-      siSo: 0,
-      anBanTru: 0,
-      isGroup: true,
-      children: {},
-    };
-
-    khoiData[khoi].children[lop] = khoiData[khoi].children[lop] || {
-      group: lop,
-      siSo: 0,
-      anBanTru: 0,
-      isGroup: false,
-    };
-
-    if (huyDK !== "X") {
-      khoiData[khoi].children[lop].siSo += 1;
-      khoiData[khoi].siSo += 1;
-      truongSiSo += 1;
+    if (!khoiData[khoi]) {
+      khoiData[khoi] = {
+        group: `KHỐI ${khoi}`,
+        siSo: 0,
+        anBanTru: 0,
+        isGroup: true,
+        children: {}
+      };
     }
 
-    if (huyDK === "T") {
-      khoiData[khoi].children[lop].anBanTru += 1;
+    if (!khoiData[khoi].children[lop]) {
+      khoiData[khoi].children[lop] = {
+        group: lop,
+        siSo: 0,
+        anBanTru: 0,
+        isGroup: false
+      };
+    }
+
+    khoiData[khoi].siSo += 1;
+    khoiData[khoi].children[lop].siSo += 1;
+    truongSiSo += 1;
+
+    if (anBanTru) {
       khoiData[khoi].anBanTru += 1;
+      khoiData[khoi].children[lop].anBanTru += 1;
       truongAn += 1;
     }
   });
 
   const summaryData = [];
-  const khoiList = Object.keys(khoiData).sort();
 
-  for (const khoi of khoiList) {
+  Object.keys(khoiData).sort().forEach(khoi => {
     const khoiItem = khoiData[khoi];
     summaryData.push({
       group: khoiItem.group,
       siSo: khoiItem.siSo,
       anBanTru: khoiItem.anBanTru,
-      isGroup: true,
+      isGroup: true
     });
 
-    const lopList = Object.keys(khoiItem.children).sort();
-    for (const lop of lopList) {
+    Object.keys(khoiItem.children).sort().forEach(lop => {
       summaryData.push(khoiItem.children[lop]);
-    }
-  }
+    });
+  });
 
   summaryData.push({
     group: "TRƯỜNG",
     siSo: truongSiSo,
     anBanTru: truongAn,
-    isGroup: true,
+    isGroup: true
   });
 
   return summaryData;
@@ -102,7 +102,7 @@ function SummaryRow({ row, openGroups, setOpenGroups, summaryData }) {
         }}
         onClick={() => {
           if (isGroup && !isTruong) {
-            setOpenGroups(isOpen ? openGroups.filter(g => g !== row.group) : [...openGroups, row.group]);
+            setOpenGroups(isOpen ? [] : [row.group]);
           }
         }}
       >
@@ -112,7 +112,7 @@ function SummaryRow({ row, openGroups, setOpenGroups, summaryData }) {
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                setOpenGroups(isOpen ? openGroups.filter(g => g !== row.group) : [...openGroups, row.group]);
+                setOpenGroups(isOpen ? [] : [row.group]);
               }}
             >
               {isOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
@@ -157,18 +157,15 @@ export default function ChotSoLieu({ onBack }) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // === PHÂN QUYỀN CẬP NHẬT ===
-    if (loginRole === "admin") {
-      // OK
-    } else if (loginRole === "yte") {
-      if (selected < today) {
-        setIsLoading(false);
-        setErrorMessage("⚠️ Bạn chỉ được cập nhật cho ngày hôm nay hoặc trong tương lai!");
-        return;
-      }
-    } else {
+    if (loginRole !== "admin" && loginRole !== "yte") {
       setIsLoading(false);
       setErrorMessage("❌ Bạn không có quyền cập nhật dữ liệu!");
+      return;
+    }
+
+    if (loginRole === "yte" && selected < today) {
+      setIsLoading(false);
+      setErrorMessage("⚠️ Bạn chỉ được cập nhật cho ngày hôm nay hoặc trong tương lai!");
       return;
     }
 
@@ -177,54 +174,166 @@ export default function ChotSoLieu({ onBack }) {
 
     try {
       const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
-        const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
+      const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
-        if (!namHocValue) {
-          setIsLoading(false);
-          setErrorMessage("❌ Không tìm thấy năm học hợp lệ trong hệ thống!");
-          return;
+      if (!namHocValue) {
+        setIsLoading(false);
+        setErrorMessage("❌ Không tìm thấy năm học hợp lệ trong hệ thống!");
+        return;
+      }
+
+      const hocSinhSnap = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
+      const hocSinhList = hocSinhSnap.docs.map(d => d.data());
+
+      const lopMap = {};
+      const truong = { siSo: 0, anBanTru: 0 };
+      const banTruDocs = [];
+
+      hocSinhList.forEach(hs => {
+        const {
+          maDinhDanh = "",
+          hoVaTen = "",
+          lop = "",
+          khoi = "",
+          huyDangKy = "",
+        } = hs;
+
+        const lopKey = lop.toString().trim();
+        const khoiKey = khoi.toString().trim();
+        if (!lopKey || !khoiKey) return;
+
+        const docId = `${maDinhDanh}-${formattedDate}`; // ✅ dấu gạch ngang
+
+        banTruDocs.push({
+          docId,
+          data: {
+            maDinhDanh,
+            hoVaTen,
+            lop: lopKey,
+            khoi: khoiKey,
+            ngay: formattedDate,
+            thang: formattedDate.slice(0, 7),
+            nam: formattedDate.slice(0, 4),
+            huyDangKy,
+          },
+        });
+
+        if (!lopMap[khoiKey]) {
+          lopMap[khoiKey] = { siSo: 0, anBanTru: 0, children: {} };
+        }
+        if (!lopMap[khoiKey].children[lopKey]) {
+          lopMap[khoiKey].children[lopKey] = { siSo: 0, anBanTru: 0 };
         }
 
-        const hocSinhSnap = await getDocs(collection(db, `BANTRU_${namHocValue}`));
+        const isAn = huyDangKy === "T";
+        const isValidSiSo = huyDangKy === "T" || huyDangKy === "";
 
-      const hocSinhData = hocSinhSnap.docs.map(doc => ({
-        id: doc.id,
-        hoVaTen: doc.data().hoVaTen,
-        lop: doc.data().lop,
-        stt: doc.data().stt,
-        maDinhDanh: doc.data().maDinhDanh,
-        huyDangKy: doc.data().huyDangKy ?? "",
-        data: doc.data().data ?? {}
-      }));
+        if (isValidSiSo) {
+          lopMap[khoiKey].siSo += 1;
+          lopMap[khoiKey].children[lopKey].siSo += 1;
+          truong.siSo += 1;
+        }
 
-      const updatedSummary = groupData(hocSinhData);
-      setSummaryData(updatedSummary);
+        if (isAn) {
+          lopMap[khoiKey].anBanTru += 1;
+          lopMap[khoiKey].children[lopKey].anBanTru += 1;
+          truong.anBanTru += 1;
+        }
+
+      });
+
+      const summaryData = [];
+
+      Object.keys(lopMap)
+        .filter(khoi => khoi.trim() !== "" && Object.keys(lopMap[khoi].children).length > 0)
+        .sort()
+        .forEach(khoi => {
+          const k = lopMap[khoi];
+          summaryData.push({
+            group: `KHỐI ${khoi}`,
+            siSo: k.siSo,
+            anBanTru: k.anBanTru,
+            isGroup: true,
+          });
+
+          Object.keys(k.children)
+            .filter(lop => lop.trim() !== "")
+            .sort()
+            .forEach(lop => {
+              const l = k.children[lop];
+              summaryData.push({
+                group: lop,
+                siSo: l.siSo,
+                anBanTru: l.anBanTru,
+                isGroup: false,
+              });
+            });
+        });
+
+      summaryData.push({
+        group: "TRƯỜNG",
+        siSo: truong.siSo,
+        anBanTru: truong.anBanTru,
+        isGroup: true,
+      });
+
+      setSummaryData(summaryData);
       setShowSuccess(true);
 
       setTimeout(async () => {
         try {
-          await Promise.all(hocSinhData.map(async (hs) => {
-            const studentRef = doc(db, `BANTRU_${namHocValue}`, hs.id);
-            await setDoc(studentRef, {
-              hoVaTen: hs.hoVaTen,
-              lop: hs.lop,
-              stt: hs.stt,
-              maDinhDanh: hs.maDinhDanh,
-              data: {
-                ...hs.data,
-                [formattedDate]: hs.huyDangKy
-              }
-            }, { merge: true });
-          }));
-        } catch (err) {
-          console.error("❌ Lỗi khi ghi dữ liệu lên Firestore:", err);
-          setErrorMessage("❌ Không thể ghi dữ liệu vào Firestore!");
-        }
-      }, 1000);
+          const banTruRef = collection(db, `BANTRU_${namHocValue}`);
+          const existingSnap = await getDocs(banTruRef);
 
+          const existingDocsMap = {};
+          existingSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.ngay === formattedDate) {
+              existingDocsMap[docSnap.id] = true;
+            }
+          });
+
+          const isEmpty = Object.keys(existingDocsMap).length === 0;
+          const batch = writeBatch(db);
+
+          banTruDocs.forEach(item => { 
+            const { docId, data } = item;
+            const huyDangKy = data.huyDangKy || "";
+            const logInfo = `${data.hoVaTen} | Lớp: ${data.lop} | Ngày: ${data.ngay}`;
+
+            // ❌ Nếu huyDangKy là "" hoặc "x" → XÓA nếu có
+            if (huyDangKy === "" || huyDangKy === "x") {
+              if (existingDocsMap[docId]) {
+                batch.delete(doc(db, `BANTRU_${namHocValue}`, docId));
+                // console.log("🗑️ XOÁ:", logInfo, "| huyDangKy:", huyDangKy);
+              } else {
+                // console.log("⚠️ KHÔNG CÓ ĐỂ XOÁ:", logInfo);
+              }
+              return; // 🛑 Dừng xử lý bản ghi này
+            }
+
+            // ✅ Nếu huyDangKy là "T" → THÊM nếu chưa có
+            if (huyDangKy === "T") {
+              if (!existingDocsMap[docId]) {
+                batch.set(doc(db, `BANTRU_${namHocValue}`, docId), data);
+                // console.log("📥 GHI MỚI:", logInfo);
+              } else {
+                // console.log("✅ BỎ QUA (đã tồn tại):", logInfo);
+              }
+            }
+
+            // 👉 Các giá trị khác của huyDangKy thì bỏ qua không làm gì
+          });
+
+          await batch.commit();
+          console.log("✅ Ghi dữ liệu nền hoàn tất:", formattedDate);
+        } catch (err) {
+          console.error("❌ Ghi dữ liệu nền thất bại:", err);
+        }
+      }, 100);
     } catch (err) {
-      console.error("Lỗi Firestore:", err);
-      setErrorMessage("❌ Không thể tải dữ liệu!");
+      console.error("❌ Lỗi khi xử lý:", err);
+      setErrorMessage("❌ Lỗi trong quá trình xử lý dữ liệu!");
     } finally {
       setIsLoading(false);
     }

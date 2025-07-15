@@ -1,4 +1,4 @@
-import * as XLSX from "sheetjs-style";
+import * as XLSX from "xlsx";
 
 // ✅ Format chuỗi ngày về dd/mm/yyyy
 const formatDate = (dateStr) => {

@@ -26,7 +26,7 @@ async function ghiNhatKyDiemDanh(ngay, namHoc, danhSachHS) {
 
   try {
     await setDoc(nhatKyRef, data, { merge: true });
-    console.log("🟢 Nhật ký điểm danh đã được ghi vào Firestore.");
+    //console.log("🟢 Nhật ký điểm danh đã được ghi vào Firestore.");
   } catch (error) {
     console.error("🔴 Lỗi ghi nhật ký điểm danh:", error);
   }

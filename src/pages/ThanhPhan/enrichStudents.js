@@ -1,13 +1,17 @@
 export const enrichStudents = (rawData, today, className, useNewVersion) => {
   return rawData
     .map((d, idx) => {
-      const diemDanhValue = d?.Diemdanh?.[today] || '';
       const lyDoVang = d?.LyDoVang?.[today] || '';
-      const isPresent = d?.vang !== 'x';
+      const hasPhepField = d.hasOwnProperty('phep');
 
+      // ✅ Xác định học sinh có mặt hay không
+      const isPresent = !hasPhepField; // Nếu có field "phep" thì là vắng
+
+      // ✅ Xác định radio "có phép" / "không phép"
       let vangCoPhep = '';
-      if (diemDanhValue === 'P') vangCoPhep = 'có phép';
-      else if (diemDanhValue === 'K') vangCoPhep = 'không phép';
+      if (hasPhepField) {
+        vangCoPhep = d.phep === true ? 'có phép' : 'không phép';
+      }
 
       return {
         id: d.id,
@@ -15,10 +19,10 @@ export const enrichStudents = (rawData, today, className, useNewVersion) => {
         stt: idx + 1,
         registered: d?.huyDangKy === 'T',
         showRegisterCheckbox: d?.huyDangKy !== 'x',
-        diemDanh: isPresent,
-        vangCoPhep,
-        lyDo: isPresent ? '' : lyDoVang,
-        lop: d?.lop || '', // Đảm bảo có trường 'lop' để lọc sau
+        diemDanh: isPresent, // ✅ Checkbox true nếu có mặt
+        vangCoPhep,           // ✅ Radio sẽ lấy từ đây
+        lyDo: isPresent ? '' : (d.lyDo || lyDoVang),
+        lop: d?.lop || '',
       };
     })
     .filter(s => useNewVersion || s.lop === className);

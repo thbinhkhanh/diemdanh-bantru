@@ -7,51 +7,72 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import vi from "date-fns/locale/vi";
-import { getDocs, getDoc, collection, doc } from "firebase/firestore";
+import { getDocs, getDoc, collection, doc, query, where } from "firebase/firestore";
 import { db } from "./firebase";
 import { format } from "date-fns";
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import { useClassList } from "./context/ClassListContext";
 
 function groupDataFromNhatKy(data, danhSachLop) {
   const khoiData = {};
   let truongCoPhep = 0;
   let truongKhongPhep = 0;
 
-  // Lấy tất cả lớp từ danh sách lớp
-  const tatCaKhoiLop = new Set();
-  Object.keys(danhSachLop).forEach((lop) => {
+  // ⚙️ Khởi tạo cấu trúc KHỐI / LỚP từ danhSachLop
+  //console.log("📘 Danh sách lớp lấy được từ Firestore:", Object.keys(danhSachLop));
+  for (const lop of Object.keys(danhSachLop)) {
     const khoi = lop.split(".")[0];
-    tatCaKhoiLop.add(`${khoi}|${lop}`);
-  });
 
-  // Tạo cấu trúc ban đầu
-  tatCaKhoiLop.forEach(entry => {
-    const [khoi, lop] = entry.split("|");
-    khoiData[khoi] = khoiData[khoi] || {
-      group: `KHỐI ${khoi}`,
-      coPhep: 0,
-      khongPhep: 0,
-      isGroup: true,
-      children: {},
-    };
-    khoiData[khoi].children[lop] = {
-      group: lop,
-      coPhep: 0,
-      khongPhep: 0,
-      isGroup: false,
-    };
-  });
+    if (!khoiData[khoi]) {
+      khoiData[khoi] = {
+        group: `KHỐI ${khoi}`,
+        coPhep: 0,
+        khongPhep: 0,
+        isGroup: true,
+        children: {},
+      };
+    }
 
-  // Tính thống kê từ dữ liệu điểm danh
+    if (!khoiData[khoi].children[lop]) {
+      khoiData[khoi].children[lop] = {
+        group: lop,
+        coPhep: 0,
+        khongPhep: 0,
+        isGroup: false,
+      };
+    }
+  }
+
+  // 🔢 Đếm dữ liệu điểm danh (duy nhất 1 lần)
   data.forEach(entry => {
     const lop = entry.lop?.toString().trim();
     const khoi = lop?.split(".")[0];
-    const loai = (entry.loai || "").toUpperCase();
+    const phep = entry.phep === true;
 
-    if (!lop || !khoi || !khoiData[khoi] || !khoiData[khoi].children[lop]) return;
+    if (!lop || !khoi) return;
 
-    if (loai === "P") {
+    // Tự thêm nếu lớp chưa có trong danhSachLop
+    if (!khoiData[khoi]) {
+      khoiData[khoi] = {
+        group: `KHỐI ${khoi}`,
+        coPhep: 0,
+        khongPhep: 0,
+        isGroup: true,
+        children: {},
+      };
+    }
+
+    if (!khoiData[khoi].children[lop]) {
+      khoiData[khoi].children[lop] = {
+        group: lop,
+        coPhep: 0,
+        khongPhep: 0,
+        isGroup: false,
+      };
+    }
+
+    if (phep) {
       khoiData[khoi].coPhep += 1;
       khoiData[khoi].children[lop].coPhep += 1;
       truongCoPhep += 1;
@@ -62,7 +83,7 @@ function groupDataFromNhatKy(data, danhSachLop) {
     }
   });
 
-  // Chuẩn bị dữ liệu trả về
+  // 📊 Chuẩn bị dữ liệu bảng thống kê
   const summaryData = [];
   const khoiList = Object.keys(khoiData).sort();
 
@@ -81,6 +102,7 @@ function groupDataFromNhatKy(data, danhSachLop) {
     }
   }
 
+  // ➕ Thêm tổng trường
   summaryData.push({
     group: "TRƯỜNG",
     coPhep: truongCoPhep,
@@ -90,9 +112,6 @@ function groupDataFromNhatKy(data, danhSachLop) {
 
   return summaryData;
 }
-
-
-
 
 function Row({ row, openGroups, setOpenGroups, summaryData }) {
   const isOpen = openGroups.includes(row.group);
@@ -153,6 +172,7 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
   const [summaryData, setSummaryData] = useState([]);
   const [openGroups, setOpenGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { classLists, setClassListForKhoi } = useClassList();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -168,36 +188,55 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
         }
 
         const ngayChon = format(selectedDate, "yyyy-MM-dd");
+        //console.log("📅 đang truy vấn điểm danh ngày:", ngayChon);
 
-        const [nhatKyDocSnap, dsSnap] = await Promise.all([
-          getDoc(doc(db, `NHATKY_${namHocValue}`, ngayChon)),
-          getDocs(collection(db, `DANHSACH_${namHocValue}`)),
-        ]);
+        // 🔍 Truy vấn điểm danh theo ngày từ DIEMDANH_YYYY-YYYY
+        const q = query(
+          collection(db, `DIEMDANH_${namHocValue}`),
+          where("ngay", "==", ngayChon)
+        );
+        const snapshot = await getDocs(q);
+        const diemDanhData = snapshot.docs.map(doc => doc.data());
 
+        //console.log("📄 Tổng bản ghi truy được:", diemDanhData.length);
+        //console.log("📋 Dữ liệu truy vấn:", diemDanhData);
+
+        // 🔍 Lấy danh sách lớp từ context (classLists là { K1: [...], K2: [...], ... })
+        // 🔍 Lấy danh sách lớp: nếu chưa có thì tải từ Firestore và merge vào context
         let danhSachLop = {};
-        dsSnap.forEach(docSnap => {
-          const data = docSnap.data();
-          const list = data.list || [];
-          list.forEach(lop => {
-            if (typeof lop === "string") danhSachLop[lop.trim()] = true;
+        if (Object.keys(classLists).length > 0) {
+          Object.values(classLists).forEach((list) => {
+            list.forEach((lop) => {
+              if (typeof lop === "string") {
+                danhSachLop[lop.trim()] = true;
+              }
+            });
           });
-        });
-
-        let diemDanhData = [];
-        if (nhatKyDocSnap.exists()) {
-          const rawData = nhatKyDocSnap.data();
-          diemDanhData = Object.entries(rawData).map(([id, value]) => ({
-            id,
-            ...value
-          }));
+        } else {
+          const truongDoc = await getDoc(doc(db, "CLASSLIST", "TRUONG"));
+          if (truongDoc.exists()) {
+            const classData = truongDoc.data(); // ví dụ: { K1: [...], K2: [...] }
+            for (const khoi in classData) {
+              setClassListForKhoi(khoi, classData[khoi]); // 🧠 merge vào context
+              classData[khoi].forEach((lop) => {
+                if (typeof lop === "string") {
+                  danhSachLop[lop.trim()] = true;
+                }
+              });
+            }
+          } else {
+            console.warn("⚠️ Không tìm thấy CLASSLIST/TRUONG trong Firestore");
+          }
         }
 
-        const summary = groupDataFromNhatKy(diemDanhData, danhSachLop);
 
+
+        const summary = groupDataFromNhatKy(diemDanhData, danhSachLop);
+        //console.log("📊 Kết quả thống kê:", summary);
         setDataList(diemDanhData);
         setSummaryData(summary);
       } catch (err) {
-        console.error("❌ Lỗi khi tải dữ liệu:", err);
+        console.error("❌ Lỗi khi tải dữ liệu:", err.message);
       } finally {
         setIsLoading(false);
       }
@@ -205,10 +244,6 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
 
     fetchData();
   }, [selectedDate]);
-
-
-
-
 
   return (
     <Box sx={{ maxWidth: 500, margin: "auto", p: 1, mt: 2 }}>
@@ -245,7 +280,11 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
           </Box>
         </LocalizationProvider>
 
-        {isLoading && <LinearProgress />}
+        {isLoading && (
+          <Box sx={{ width: "50%", mx: "auto", mt: 2 }}>
+            <LinearProgress />
+          </Box>
+        )}
 
         <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 2 }}>
           <Table>

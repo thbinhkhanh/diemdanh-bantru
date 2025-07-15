@@ -1,12 +1,12 @@
-import { doc, updateDoc, deleteField, setDoc } from 'firebase/firestore';
+import { doc, deleteDoc, setDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 /**
  * Ghi điểm danh 1 học sinh và cập nhật lại context
  * 
  * @param {object} student - Học sinh cần lưu
- * @param {string} namHoc - Ví dụ "2025"
- * @param {string} selectedClass - Lớp hiện tại, ví dụ "1.2"
+ * @param {string} namHoc - Ví dụ "2024-2025"
+ * @param {string} selectedClass - Lớp hiện tại, ví dụ "1A"
  * @param {object} classData - context hiện tại
  * @param {function} setClassData - hàm để cập nhật context
  */
@@ -20,66 +20,56 @@ export const saveSingleDiemDanh = async (
   const now = new Date();
   const vietnamOffsetMs = 7 * 60 * 60 * 1000;
   const vietnamNow = new Date(now.getTime() + vietnamOffsetMs);
-  const today = vietnamNow.toISOString().split('T')[0];
+  const today = vietnamNow.toISOString().split('T')[0]; // yyyy-mm-dd
+  const thang = today.slice(0, 7); // yyyy-mm
+  const nam = today.slice(0, 4); // yyyy
 
-  const docRef = doc(db, `BANTRU_${namHoc}`, student.id);
-  const nhatKyRef = doc(db, `NHATKY_${namHoc}`, today);
+  const collectionName = `DIEMDANH_${namHoc}`;
+  const docId = `${student.maDinhDanh}_${today}`;
+  const diemDanhRef = doc(db, collectionName, docId);
+  const danhSachRef = doc(db, `DANHSACH_${namHoc}`, student.maDinhDanh);
+
+  const lyDoGhi = student.lyDo?.trim() || 'Không rõ lý do';
+  const phep = student.vangCoPhep === 'có phép';
 
   try {
     if (!student.diemDanh) {
-      // ✅ Vắng
-      const value =
-        student.vangCoPhep === 'có phép'
-          ? 'P'
-          : student.vangCoPhep === 'không phép'
-          ? 'K'
-          : '';
-
-      await updateDoc(docRef, {
-        [`Diemdanh.${today}`]: {
-          loai: value,
-          lydo: student.lyDo || '',
-        },
-        vang: 'x',
-        lyDo: student.lyDo || '',
-      });
-
-      await setDoc(
-        nhatKyRef,
-        {
-          [student.id]: {
-            hoTen: student.hoVaTen || '',
-            lop: student.lop || '',
-            loai: value,
-            lydo: student.lyDo || '',
-            ngay: today,
-          },
-        },
-        { merge: true }
-      );
+      // ✅ Vắng → Ghi điểm danh + cập nhật DANHSACH
+      await Promise.all([
+        setDoc(diemDanhRef, {
+          maDinhDanh: student.maDinhDanh,
+          hoTen: student.hoVaTen || '',
+          lop: student.lop || '',
+          khoi: student.khoi || '',
+          ngay: today,
+          thang,
+          nam,
+          lyDo: lyDoGhi,
+          phep,
+        }),
+        updateDoc(danhSachRef, {
+          lyDo: lyDoGhi,
+          phep,
+        }),
+      ]);
     } else {
-      // ✅ Có mặt → xoá điểm danh
-      await updateDoc(docRef, {
-        [`Diemdanh.${today}`]: deleteField(),
-        lyDo: deleteField(),
-        vang: '',
-      });
-
-      await updateDoc(nhatKyRef, {
-        [student.id]: deleteField(),
-      });
+      // ✅ Có mặt → Xoá điểm danh + reset DANHSACH
+      await Promise.all([
+        deleteDoc(diemDanhRef),
+        updateDoc(danhSachRef, {
+          lyDo: '',
+          //phep: null,
+          phep: deleteField(), // ✅ xoá hoàn toàn field "phep"
+        }),
+      ]);
     }
 
-    // ✅ Gộp học sinh đã chỉnh vào context
+    // ✅ Cập nhật lại context
     const fullList = classData[selectedClass] || [];
-    const merged = fullList.map((s) =>
-      s.id === student.id ? student : s
-    );
-
+    const merged = fullList.map((s) => s.id === student.id ? student : s);
     setClassData(selectedClass, merged);
-    //console.log(`✅ Đã cập nhật context lớp ${selectedClass} sau khi điểm danh`);
   } catch (err) {
-    console.error(`Lỗi khi lưu điểm danh học sinh ${student.id}:`, err.message);
+    console.error(`❌ Lỗi khi lưu điểm danh học sinh ${student.id}:`, err.message);
     throw err;
   }
 };

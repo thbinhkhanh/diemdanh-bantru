@@ -14,23 +14,23 @@ const GroupDetails = ({ items, groupKey }) => {
   const [openIndex, setOpenIndex] = useState(0); // Mở mục đầu tiên
 
   return (
-    <>
-      {items.map((item, index) => (
-        <details
-          key={`${groupKey}-${index}`}
-          open={openIndex === index}
-          onToggle={(e) => {
-            if (e.target.open) {
-              setOpenIndex(index); // Khi mở thì đóng các mục khác
-            }
-          }}
-        >
-          <summary>{item.title}</summary>
-          {item.content}
-        </details>
-      ))}
-    </>
-  );
+  <>
+    {items.map((item, index) => (
+      <details
+        key={`${groupKey}-${index}`}
+        open={openIndex === index}
+        onToggle={(e) => {
+          if (e.target.open) {
+            setOpenIndex(index); // Khi mở thì đóng các mục khác
+          }
+        }}
+      >
+        <summary>{item.title}</summary>
+        <div>{item.content}</div>
+      </details>
+    ))}
+  </>
+);
 };
 
 export default function HuongDan() {

@@ -12,7 +12,7 @@ export const ClassDataProvider = ({ children }) => {
       return;
     }
 
-    console.log(`💾 Ghi vào context lớp ${classId}, số lượng học sinh: ${data.length}`);
+    //console.log(`💾 Ghi vào context lớp ${classId}, số lượng học sinh: ${data.length}`);
     setClassDataMap(prev => ({
       ...prev,
       [classId]: data

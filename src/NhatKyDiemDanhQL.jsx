@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Box, Typography, Paper, Table, TableHead, TableBody,
-  TableRow, TableCell, CircularProgress, Stack, Button,
+  TableRow, TableCell, Stack, Button,
   TableSortLabel, TableContainer, Select, MenuItem,
   InputLabel, FormControl, RadioGroup, FormControlLabel, Radio
 } from "@mui/material";
@@ -15,6 +15,9 @@ import { format } from "date-fns";
 import { useMediaQuery, useTheme } from "@mui/material";
 import * as XLSX from "xlsx";
 import { exportNhatKyToExcel } from "./utils/exportNhatKy";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { LinearProgress } from "@mui/material";
+
 
 export default function NhatKyDiemDanh({ onBack }) {
   const today = new Date();
@@ -50,78 +53,48 @@ export default function NhatKyDiemDanh({ onBack }) {
     }
   }, [filterThang, filterNam, filterMode]);
 
-
   const fetchData = async () => {
     setIsLoading(true);
-    setDataList([]); // 👉 Quan trọng: reset dữ liệu cũ
+    setDataList([]);
+
     try {
       const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
       const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
       if (!namHocValue) {
         console.error("❌ Không tìm thấy năm học hiện tại!");
-        setDataList([]);
         setIsLoading(false);
         return;
       }
 
-      let combinedData = [];
+      const diemDanhRef = collection(db, `DIEMDANH_${namHocValue}`);
+      let q;
 
       if (filterMode === "ngay") {
-        const ngayKey = format(selectedDate, "yyyy-MM-dd");
-        const nhatKyDoc = await getDoc(doc(db, `NHATKY_${namHocValue}`, ngayKey));
-        if (nhatKyDoc.exists()) {
-          const rawData = nhatKyDoc.data();
-          combinedData = Object.entries(rawData).map(([id, value]) => ({ id, ...value }));
-        }
-      } else {
-        const datesToFetch = [];
-
-        if (filterMode === "thang") {
-          const year = filterNam;
-          const month = filterThang - 1;
-          const daysInMonth = new Date(year, month + 1, 0).getDate();
-          for (let day = 1; day <= daysInMonth; day++) {
-            datesToFetch.push(new Date(year, month, day));
-          }
-        }
-
-        if (filterMode === "nam") {
-          const year = filterNam;
-          for (let month = 0; month < 12; month++) {
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            for (let day = 1; day <= daysInMonth; day++) {
-              datesToFetch.push(new Date(year, month, day));
-            }
-          }
-        }
-
-        const promises = datesToFetch.map((date) => {
-          const ngayKey = format(date, "yyyy-MM-dd");
-          const docRef = doc(db, `NHATKY_${namHocValue}`, ngayKey);
-          return getDoc(docRef).then((snapshot) => ({ snapshot, ngayKey }));
-        });
-
-        const results = await Promise.all(promises);
-
-        for (const { snapshot, ngayKey } of results) {
-          if (snapshot.exists()) {
-            const rawData = snapshot.data();
-            combinedData = combinedData.concat(
-              Object.entries(rawData).map(([id, value]) => ({
-                id,
-                ...value,
-                ngay: ngayKey, // ✅ Thêm ngày vào từng bản ghi
-              }))
-            );
-          }
-        }
-
+        const ngayStr = format(selectedDate, "yyyy-MM-dd");
+        q = query(diemDanhRef, where("ngay", "==", ngayStr));
+      } else if (filterMode === "thang") {
+        const thangStr = `${filterNam}-${String(filterThang).padStart(2, "0")}`;
+        q = query(diemDanhRef, where("thang", "==", thangStr));
+      } else if (filterMode === "nam") {
+        q = query(diemDanhRef, where("nam", "==", `${filterNam}`));
       }
 
-      const cleanedData = combinedData.filter((item) => item.lop && item.hoTen);
-      setDataList(cleanedData);
+      const querySnapshot = await getDocs(q);
+      let records = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        records.push({
+          id: docSnap.id,
+          ...data,
+          loai: data.phep ? "P" : "K", // để tương thích cấu trúc cũ
+          lydo: data.lyDo || "",       // đổi từ lyDo (mới) về lydo (cũ)
+        });
+      });
 
+      const cleanedData = records.filter((item) => item.lop && item.hoTen);
+
+      setDataList(cleanedData);
     } catch (err) {
       console.error("❌ Lỗi khi tải dữ liệu:", err);
       setDataList([]);
@@ -129,6 +102,8 @@ export default function NhatKyDiemDanh({ onBack }) {
       setIsLoading(false);
     }
   };
+
+
 
   useEffect(() => {
     fetchData();
@@ -339,8 +314,10 @@ export default function NhatKyDiemDanh({ onBack }) {
     </LocalizationProvider>
 
     {isLoading ? (
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-        <CircularProgress />
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+        <Box sx={{ width: '50%' }}>
+          <LinearProgress />
+        </Box>
       </Box>
     ) : (
       <>

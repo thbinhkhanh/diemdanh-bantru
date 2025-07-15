@@ -108,7 +108,7 @@ function Row({ row, openGroups, setOpenGroups, summaryData }) {
         }}
         onClick={() => {
           if (isGroup && !isTruong) {
-            setOpenGroups(isOpen ? openGroups.filter(g => g !== row.group) : [...openGroups, row.group]);
+            setOpenGroups(isOpen ? [] : [row.group]);
           }
         }}
       >
@@ -118,7 +118,7 @@ function Row({ row, openGroups, setOpenGroups, summaryData }) {
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                setOpenGroups(isOpen ? openGroups.filter(g => g !== row.group) : [...openGroups, row.group]);
+                setOpenGroups(isOpen ? [] : [row.group]);
               }}
             >
               {isOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
@@ -152,7 +152,7 @@ export default function SoLieuTrongNgay({ onBack }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 🔄 Lấy năm học hiện tại từ Firestore
+        // 🔄 Lấy năm học hiện tại
         const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
         const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
@@ -162,9 +162,11 @@ export default function SoLieuTrongNgay({ onBack }) {
           return;
         }
 
-        // 🔄 Truy xuất collection theo năm học
-        const snapshot = await getDocs(collection(db, `BANTRU_${namHocValue}`));
+        // ✅ Lấy toàn bộ dữ liệu DANHSACH_[NĂM_HỌC]
+        const snapshot = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
         const allData = snapshot.docs.map(doc => doc.data());
+
+        // ✅ Gọi hàm groupData để thống kê
         const summary = groupData(allData);
         setSummaryData(summary);
       } catch (error) {
@@ -177,6 +179,9 @@ export default function SoLieuTrongNgay({ onBack }) {
 
     fetchData();
   }, []);
+
+
+
 
   return (
     <Box

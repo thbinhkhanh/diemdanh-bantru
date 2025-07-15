@@ -6,7 +6,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { motion } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { setDoc, doc, getDocs, getDoc, collection } from 'firebase/firestore';
+import { setDoc, doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { customAlphabet } from 'nanoid';
 
@@ -133,20 +133,20 @@ export default function TaiDanhSach({ onBack }) {
   };
 
   const processStudentData = async (jsonData) => {
-    const banTruCollection = `BANTRU_${namHoc}`;
-    const danhSachCollection = `BANTRU_${namHoc}`;
-    
+    const studentCollection = `DANHSACH_${namHoc}`;
+    const classListCollection = `CLASSLIST_${namHoc}`;
     const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
+
     const studentsNew = jsonData.map(row => {
       const lop = row['LỚP']?.toString().trim().toUpperCase();
       const randomId = nanoid();
-      const maDinhDanh = `${lop}-${randomId}`;  // Không có phần năm học
-
+      const maDinhDanh = `${lop}-${randomId}`;
       return {
         stt: row['STT'] || '',
         maDinhDanh,
         hoVaTen: row['HỌ VÀ TÊN']?.toString().trim(),
         lop,
+        khoi: lop.charAt(0), // ✅ Thêm dòng này để có "khoi"
         huyDangKy: row['ĐĂNG KÝ']?.toString().trim().toLowerCase() === 'x' ? 'T' : 'x',
       };
     });
@@ -164,7 +164,7 @@ export default function TaiDanhSach({ onBack }) {
     for (let i = 0; i < studentsNew.length; i++) {
       const student = studentsNew[i];
       try {
-        await setDoc(doc(db, banTruCollection, student.maDinhDanh), student);
+        await setDoc(doc(db, studentCollection, student.maDinhDanh), student);
         successCount++;
       } catch (err) {
         console.error(`❌ Lỗi khi ghi học sinh [${student.hoVaTen}]:`, err.message);
@@ -176,33 +176,46 @@ export default function TaiDanhSach({ onBack }) {
     }
 
     try {
-      const truongRef = doc(db, danhSachCollection, 'TRUONG');
+      const truongRef = doc(db, classListCollection, 'TRUONG');
       const truongSnap = await getDoc(truongRef);
       const oldClasses = truongSnap.exists() ? truongSnap.data().list || [] : [];
       const allClasses = new Set(oldClasses);
 
+      // ✅ Thêm các lớp mới
       studentsNew.forEach(student => {
         const lop = student.lop?.toString().trim();
         if (lop) allClasses.add(lop);
       });
 
-      const classArray = Array.from(allClasses).sort();
-      const grouped = { K1: [], K2: [], K3: [], K4: [], K5: [] };
+      // ✅ Sắp xếp các lớp
+      const classArray = Array.from(allClasses).map(x => x.replace(/\s+/g, '').toUpperCase()).sort((a, b) =>
+        a.localeCompare(b, 'vi', { numeric: true })
+      );
+
+      const grouped = {}; // Khối: K1, K2, K3...
 
       classArray.forEach(lop => {
-        const kh = lop.split('.')[0];
-        if (grouped['K' + kh]) grouped['K' + kh].push(lop);
+        const khoiMatch = lop.match(/^(\d+)/); // Lấy toàn bộ chữ số đầu (vd: 1.1 → 1)
+        if (khoiMatch) {
+          const khoi = `K${khoiMatch[1]}`;
+          if (!grouped[khoi]) grouped[khoi] = [];
+          grouped[khoi].push(lop);
+        }
       });
 
-      await setDoc(doc(db, danhSachCollection, 'TRUONG'), { list: classArray });
-      for (const key in grouped) {
-        await setDoc(doc(db, danhSachCollection, key), { list: grouped[key] });
+      // ✅ Lưu danh sách toàn trường
+      await setDoc(doc(db, classListCollection, 'TRUONG'), { list: classArray });
+
+      // ✅ Lưu theo từng khối
+      for (const khoiKey in grouped) {
+        await setDoc(doc(db, classListCollection, khoiKey), { list: grouped[khoiKey] });
       }
 
-      console.log('✅ Cập nhật danh sách lớp thành công');
+      console.log('✅ Cập nhật CLASSLIST thành công');
     } catch (e) {
-      console.error('❌ Lỗi khi cập nhật danh sách lớp:', e.message);
+      console.error('❌ Lỗi khi cập nhật CLASSLIST:', e.message);
     }
+
 
     if (successCount > 0) setSelectedFile(null);
     setSuccess(errorCount === 0);

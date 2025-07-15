@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Box, Typography, Paper, Table, TableHead, TableBody,
-  TableRow, TableCell, CircularProgress, Button,
+  TableRow, TableCell, Button,
   TableSortLabel, TableContainer,
   InputLabel, FormControl, RadioGroup, FormControlLabel, Radio
 } from "@mui/material";
@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { useMediaQuery, useTheme } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useNhatKy } from "./context/NhatKyContext";
+import { LinearProgress } from "@mui/material";
 
 
 export default function NhatKyGV() {
@@ -60,74 +61,53 @@ export default function NhatKyGV() {
         return;
       }
 
-      if (filterMode === "ngay") {
-        const ngayKey = format(selectedDate, "yyyy-MM-dd");
-        const cached = getMonthlyData(lop, selectedDate.getFullYear(), selectedDate.getMonth() + 1);
+      const collectionName = `DIEMDANH_${namHocValue}`;
+      const thang = selectedDate.getMonth() + 1;
+      const nam = selectedDate.getFullYear();
+      const ngayKey = format(selectedDate, "yyyy-MM-dd");
+      const thangKey = `${nam}-${String(thang).padStart(2, "0")}`;
 
-        if (cached && cached.length > 0) {
-          const fromNgay = cached.filter(entry => format(new Date(entry.ngay), "yyyy-MM-dd") === ngayKey);
+      // Luôn kiểm tra cache trước
+      const cached = getMonthlyData(lop, nam, thang);
 
-          if (fromNgay.length > 0) {
-            //console.log(`✅ Dữ liệu NGÀY ${ngayKey} lấy từ context`);
-            setDataList(fromNgay);
-            return;
-          }
-        }
-
-        //console.log(`📅 Đang tải dữ liệu NGÀY: ${ngayKey} từ Firestore`);
-
-        const nhatKyDoc = await getDoc(doc(db, `NHATKY_${namHocValue}`, ngayKey));
-        if (nhatKyDoc.exists()) {
-          const rawData = nhatKyDoc.data();
-          const filtered = Object.entries(rawData)
-            .filter(([_, value]) => value.lop === lop)
-            .map(([id, value]) => ({ id, ...value, ngay: ngayKey }));
-
+      if (cached?.length > 0) {
+        if (filterMode === "ngay") {
+          const filtered = cached.filter(
+            (entry) => format(new Date(entry.ngay), "yyyy-MM-dd") === ngayKey
+          );
           setDataList(filtered);
         } else {
-          setDataList([]);
-        }
-      }
-
-      if (filterMode === "thang") {
-        const cached = getMonthlyData(lop, filterNam, filterThang);
-
-        if (cached && cached.length > 0) {
-          //console.log(`✅ Dữ liệu THÁNG ${filterThang}/${filterNam} lấy từ context`);
           setDataList(cached);
-          return;
         }
-
-        //console.log(`🔥 Tải THÁNG ${filterThang}/${filterNam} từ Firestore...`);
-
-        const daysInMonth = new Date(filterNam, filterThang, 0).getDate();
-        const promises = [];
-
-        for (let day = 1; day <= daysInMonth; day++) {
-          const date = new Date(filterNam, filterThang - 1, day);
-          const ngayKey = format(date, "yyyy-MM-dd");
-          const docRef = doc(db, `NHATKY_${namHocValue}`, ngayKey);
-          promises.push(getDoc(docRef).then(snapshot => ({ snapshot, ngayKey })));
-        }
-
-        const results = await Promise.all(promises);
-        let combinedData = [];
-
-        for (const { snapshot, ngayKey } of results) {
-          if (snapshot.exists()) {
-            //console.log(`📅 Đang tải dữ liệu NGÀY: ${ngayKey} từ Firestore`);
-            const rawData = snapshot.data();
-            const filtered = Object.entries(rawData)
-              .filter(([_, value]) => value.lop === lop)
-              .map(([id, value]) => ({ id, ...value, ngay: ngayKey }));
-            combinedData = combinedData.concat(filtered);
-          }
-        }
-
-        //console.log(`🆕 Đã tải ${combinedData.length} mục từ Firestore tháng ${filterThang}/${filterNam}`);
-        setMonthlyData(lop, filterNam, filterThang, combinedData);
-        setDataList(combinedData);
+        setIsLoading(false);
+        return;
       }
+
+      // Nếu chưa có cache, load từ Firestore (toàn bộ tháng)
+      const { getDocs, collection } = await import("firebase/firestore");
+      const snapshot = await getDocs(collection(db, collectionName));
+      const filtered = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.lop === lop && data.thang === thangKey) {
+          filtered.push({ id: docSnap.id, ...data });
+        }
+      });
+
+      // Lưu context
+      setMonthlyData(lop, nam, thang, filtered);
+
+      // Xử lý hiển thị
+      if (filterMode === "ngay") {
+        const filteredByDay = filtered.filter(
+          (entry) => format(new Date(entry.ngay), "yyyy-MM-dd") === ngayKey
+        );
+        setDataList(filteredByDay);
+      } else {
+        setDataList(filtered);
+      }
+
     } catch (err) {
       console.error("❌ Lỗi khi tải dữ liệu:", err);
       setDataList([]);
@@ -275,8 +255,10 @@ export default function NhatKyGV() {
 
           {/* Hiển thị dữ liệu */}
           {isLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-              <CircularProgress />
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Box sx={{ width: '50%' }}>
+                <LinearProgress />
+              </Box>
             </Box>
           ) : isMobile ? (
             // 💡 Dạng thẻ cho mobile

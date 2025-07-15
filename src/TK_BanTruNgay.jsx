@@ -14,18 +14,20 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
 // Group dữ liệu theo khối và lớp
-function groupData(data, selectedDate) {
+function groupData(banTruData, danhSachData, selectedDate) {
   const khoiData = {};
   let truongSiSo = 0;
   let truongAn = 0;
   const ngayChon = format(selectedDate, "yyyy-MM-dd");
 
-  data.forEach(student => {
+  // 🔢 Thống kê sĩ số từ DANHSACH_...
+  danhSachData.forEach(student => {
     const lop = student.lop?.toString().trim();
     const khoi = lop?.split(".")[0];
     const huyDK = (student.huyDangKy || "").toUpperCase();
 
     if (!lop || !khoi) return;
+    if (huyDK !== "" && huyDK !== "T") return;
 
     khoiData[khoi] = khoiData[khoi] || {
       group: `KHỐI ${khoi}`,
@@ -42,19 +44,26 @@ function groupData(data, selectedDate) {
       isGroup: false,
     };
 
-    if (huyDK !== "X") {
-      khoiData[khoi].children[lop].siSo += 1;
-      khoiData[khoi].siSo += 1;
-      truongSiSo += 1;
-    }
-
-    if (student.data && student.data[ngayChon] === "T") {
-      khoiData[khoi].children[lop].anBanTru += 1;
-      khoiData[khoi].anBanTru += 1;
-      truongAn += 1;
-    }
+    khoiData[khoi].children[lop].siSo += 1;
+    khoiData[khoi].siSo += 1;
+    truongSiSo += 1;
   });
 
+  // 🍱 Thống kê ăn bán trú từ BANTRU_... theo ngày chọn
+  banTruData.forEach(record => {
+    const { lop, khoi, ngay } = record;
+    const lopClean = lop?.toString().trim();
+    const khoiClean = khoi?.toString().trim();
+
+    if (ngay !== ngayChon || !lopClean || !khoiClean) return;
+    if (!khoiData[khoiClean] || !khoiData[khoiClean].children[lopClean]) return;
+
+    khoiData[khoiClean].children[lopClean].anBanTru += 1;
+    khoiData[khoiClean].anBanTru += 1;
+    truongAn += 1;
+  });
+
+  // 📊 Tổng hợp dữ liệu
   const summaryData = [];
   const khoiList = Object.keys(khoiData).sort();
 
@@ -146,31 +155,38 @@ export default function ThongKeTheoNgay({ onBack }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
-        const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
+      const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
-        if (!namHocValue) {
-          console.error("❌ Không tìm thấy năm học hiện tại trong hệ thống!");
-          setIsLoading(false);
-          return;
-        }
-
-        const snapshot = await getDocs(collection(db, `BANTRU_${namHocValue}`));
-        const studentData = snapshot.docs.map(doc => doc.data());
-        setDataList(studentData);
-        setSummaryData(groupData(studentData, selectedDate));
-      } catch (err) {
-        console.error("❌ Lỗi khi tải dữ liệu từ Firebase:", err);
-      } finally {
+      if (!namHocValue) {
+        console.error("❌ Không tìm thấy năm học hiện tại trong hệ thống!");
         setIsLoading(false);
+        return;
       }
-    };
 
-    fetchData();
-  }, [selectedDate]);
+      const [banTruSnap, danhSachSnap] = await Promise.all([
+        getDocs(collection(db, `BANTRU_${namHocValue}`)),
+        getDocs(collection(db, `DANHSACH_${namHocValue}`)),
+      ]);
+
+      const banTruData = banTruSnap.docs.map(doc => doc.data());
+      const danhSachData = danhSachSnap.docs.map(doc => doc.data());
+
+      setDataList(banTruData); // Optional: nếu bạn đang dùng dataList cho việc khác
+      const summary = groupData(banTruData, danhSachData, selectedDate);
+      setSummaryData(summary);
+    } catch (err) {
+      console.error("❌ Lỗi khi tải dữ liệu từ Firebase:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchData();
+}, [selectedDate]);
 
   return (
     <Box sx={{ maxWidth: 500, marginLeft: "auto", marginRight: "auto", paddingLeft: 0.5, paddingRight: 0.5, mt: 2 }}>

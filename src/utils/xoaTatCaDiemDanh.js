@@ -3,7 +3,7 @@ import { getDoc, doc, getDocs, collection, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 
 export const xoaTatCaDiemDanh = async () => {
-  const confirmed = window.confirm("⚠️ Bạn có chắc muốn xóa tất cả dữ liệu điểm danh không?");
+  const confirmed = window.confirm("⚠️ Bạn có chắc muốn reset dữ liệu điểm danh ngày hôm nay?");
   if (!confirmed) return;
 
   try {

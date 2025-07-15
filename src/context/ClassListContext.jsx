@@ -1,13 +1,14 @@
-// context/ClassListContext.jsx
 import { createContext, useContext, useState } from "react";
 
 const ClassListContext = createContext();
 
 export const ClassListProvider = ({ children }) => {
-  const [classLists, setClassLists] = useState({}); // ví dụ: { K1: ["1.1", "1.2"], K2: [...] }
+  const [classLists, setClassLists] = useState({}); // ví dụ: { K1: [...], TRUONG: [...] }
 
+  // 🔍 Trả về danh sách lớp theo khối
   const getClassList = (khoi) => classLists[khoi] || [];
 
+  // ✏️ Ghi đè hoặc thêm danh sách lớp cho khối
   const setClassListForKhoi = (khoi, list) => {
     setClassLists((prev) => ({
       ...prev,
@@ -22,4 +23,5 @@ export const ClassListProvider = ({ children }) => {
   );
 };
 
+// 🎯 Hook tiện lợi để sử dụng trong component
 export const useClassList = () => useContext(ClassListContext);
