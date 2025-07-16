@@ -4,7 +4,7 @@ import {
   Card, Divider, Select, MenuItem, FormControl, InputLabel,
   RadioGroup, Radio, FormControlLabel, LinearProgress, Alert, Tabs, Tab, Checkbox, FormGroup
 } from "@mui/material";
-import { doc, setDoc, getDoc, getDocs, deleteDoc, collection } from "firebase/firestore";
+import { doc, setDoc, getDoc, getDocs, collection } from "firebase/firestore";
 import { db } from "./firebase";
 import {
   downloadBackupAsJSON,
@@ -66,12 +66,6 @@ export default function Admin({ onCancel }) {
   const [restoreTriggered, setRestoreTriggered] = useState(false);
   const inputRef = useRef(null); 
   const { getClassData, setClassData } = useClassData();
-
-  const [progress, setProgress] = useState(0);
-  const [deleting, setDeleting] = useState(false); 
-  const [deletingLabel, setDeletingLabel] = useState("");
-  const [deleteSuccess, setDeleteSuccess] = useState(false);
-
 
   const [selectedDataTypes, setSelectedDataTypes] = useState({
     danhsach: false,
@@ -264,7 +258,7 @@ export default function Admin({ onCancel }) {
 
       const total = snapshot.docs.length;
       let completed = 0;
-      //let count = 0;
+      let count = 0;
 
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
@@ -273,7 +267,7 @@ export default function Admin({ onCancel }) {
             ...data,
             huyDangKy: "T"
           });
-          //count++;
+          count++;
         }
         completed++;
         setResetProgress(Math.round((completed / total) * 100));
@@ -292,11 +286,10 @@ export default function Admin({ onCancel }) {
 
       setClassData(updatedClassData);
 
-      //setResetMessage(`✅ Đã cập nhật ${count} học sinh đăng ký bán trú.`);
-      setResetMessage(`✅ Đã reset xong bán trú.`);
+      setResetMessage(`✅ Đã cập nhật ${count} học sinh đăng ký bán trú.`);
       setResetSeverity("success");
     } catch (err) {
-      console.error("❌ Lỗi khi reset bán trú:", err);
+      console.error("❌ Lỗi khi reset đăng ký:", err);
       setResetMessage("❌ Có lỗi xảy ra khi cập nhật.");
       setResetSeverity("error");
     } finally {
@@ -328,7 +321,7 @@ export default function Admin({ onCancel }) {
 
       const total = snapshot.docs.length;
       let completed = 0;
-      //let count = 0;
+      let count = 0;
 
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
@@ -347,15 +340,14 @@ export default function Admin({ onCancel }) {
             phep: deleteField() // ✅ xóa hoàn toàn field phep
           }, { merge: true });
 
-          //count++;
+          count++;
         }
 
         completed++;
         setResetProgress(Math.round((completed / total) * 100));
       }
 
-      //setResetMessage(`✅ Đã reset điểm danh cho ${count} học sinh.`);
-      setResetMessage(`✅ Đã reset xong điểm danh.`);
+      setResetMessage(`✅ Đã reset điểm danh cho ${count} học sinh.`);
       setResetSeverity("success");
     } catch (err) {
       console.error("❌ Lỗi khi reset điểm danh:", err);
@@ -379,64 +371,38 @@ export default function Admin({ onCancel }) {
     if (!confirmed) return;
 
     try {
-      setDeleting(true);
-      setProgress(0);
-
       if (danhsach) {
-        setDeletingLabel("Đang xóa danh sách...");
         const snap = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
-        const total = snap.docs.length;
-        for (let i = 0; i < total; i++) {
-          await deleteDoc(snap.docs[i].ref);
-          setProgress(Math.round(((i + 1) / total) * 100));
+        for (const doc of snap.docs) {
+          await setDoc(doc.ref, {}, { merge: false });
         }
         console.log("✅ Đã xóa DANHSACH");
       }
 
       if (diemdan) {
-        setDeletingLabel("Đang xóa điểm danh...");
         const snap = await getDocs(collection(db, `DIEMDANH_${namHocValue}`));
-        const total = snap.docs.length;
-        for (let i = 0; i < total; i++) {
-          await deleteDoc(snap.docs[i].ref);
-          setProgress(Math.round(((i + 1) / total) * 100));
+        for (const doc of snap.docs) {
+          await setDoc(doc.ref, {}, { merge: false });
         }
         console.log("✅ Đã xóa DIEMDANH");
       }
 
       if (bantru) {
-        setDeletingLabel("Đang xóa bán trú...");
         const snap = await getDocs(collection(db, `BANTRU_${namHocValue}`));
-        const total = snap.docs.length;
-        for (let i = 0; i < total; i++) {
-          await deleteDoc(snap.docs[i].ref);
-          setProgress(Math.round(((i + 1) / total) * 100));
+        for (const doc of snap.docs) {
+          await setDoc(doc.ref, {}, { merge: false });
         }
         console.log("✅ Đã xóa BANTRU");
       }
 
-      // ✅ THÊM THÔNG BÁO THÀNH CÔNG
-      setDeleteMessage("✅ Đã xóa thành công các dữ liệu đã chọn.");
-      setDeleteSeverity("success");
-
-      setDeleteSuccess(true);
+      alert("✅ Đã xóa thành công các dữ liệu đã chọn.");
       setDeleteCollections({ danhsach: false, bantru: false, diemdan: false });
       setShowDeleteOptions(false);
     } catch (err) {
       console.error("❌ Lỗi khi xóa dữ liệu:", err);
-      setDeleteMessage("❌ Có lỗi xảy ra khi xóa.");
-      setDeleteSeverity("error");
-      setDeleteSuccess(false);
-    } finally {
-      setTimeout(() => {
-        setDeleting(false);
-        setDeletingLabel("");
-        setProgress(0);
-        setDeleteSuccess(false);
-      }, 1500);
+      alert("❌ Có lỗi xảy ra khi xóa.");
     }
   };
-
 
   const handleInitNewYearData = async () => {
     const confirmed = window.confirm(`⚠️ Bạn có chắc muốn khởi tạo dữ liệu cho năm ${selectedYear}?`);
@@ -826,22 +792,9 @@ export default function Admin({ onCancel }) {
                   <Button variant="contained" color="primary" sx={{ mt: 1 }} onClick={handlePerformDelete}>
                     ❌ Thực hiện xóa dữ liệu
                   </Button>
-
-                  {deleting && (
-                    <div style={{ margin: "8px 0", width: "100%", textAlign: "center" }}>
-                      <LinearProgress variant="determinate" value={progress} />
-                      <p style={{ marginTop: 4 }}>{deletingLabel} {progress}%</p>
-                    </div>
-                  )}
-
-                  {deleteSuccess && (
-                    <p style={{ marginTop: 8, color: "green", fontWeight: "bold", textAlign: "center" }}>
-                      ✅ Đã xóa thành công các dữ liệu đã chọn.
-                    </p>
-                  )}
-
                 </>
               )}
+
 
               <Button variant="contained" color="warning" onClick={handleResetDangKyBanTru}>
                 ♻️ Reset bán trú
