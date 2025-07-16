@@ -416,7 +416,7 @@ export default function Admin({ onCancel }) {
       }
 
       // ✅ THÊM THÔNG BÁO THÀNH CÔNG
-      setDeleteMessage("✅ Đã xóa thành công các dữ liệu đã chọn.");
+      setDeleteMessage("✅ Đã xóa xong dữ liệu.");
       setDeleteSeverity("success");
 
       setDeleteSuccess(true);
