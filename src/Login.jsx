@@ -89,7 +89,7 @@ export default function Login() {
             </Typography>
 
 
-            <FormControl fullWidth>
+            <FormControl fullWidth size="small">
               <InputLabel id="account-label">Loại tài khoản</InputLabel>
               <Select
                 labelId="account-label"
@@ -101,6 +101,7 @@ export default function Login() {
                 <MenuItem value="ketoan">💰 Kế toán</MenuItem>
                 <MenuItem value="bgh">📋 BGH</MenuItem>
                 <MenuItem value="admin">🔐 Admin</MenuItem>
+                
               </Select>
             </FormControl>
 
@@ -110,6 +111,7 @@ export default function Login() {
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               fullWidth
+              size="small" // Giảm độ cao
             />
 
             <Button
