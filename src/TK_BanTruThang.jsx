@@ -339,8 +339,7 @@ export default function ThongKeThang({ onBack }) {
                   key={student.id}
                   sx={{
                     height: 48,
-                    backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "inherit",
-                    "& td": { border: "1px solid #ccc", py: 1 },
+                    backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "inherit", "& td": { border: "1px solid #ccc", py: 1 },
                   }}
                 >
                   <TableCell

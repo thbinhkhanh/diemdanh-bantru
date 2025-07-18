@@ -286,8 +286,7 @@ export default function ThongKeNam({ onBack }) {
                 {dataList.map((student) => (
                   <TableRow key={student.id} sx={{
                     height: 44,
-                    backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "inherit",
-                    "& td": { border: "1px solid #ccc", py: 1 }
+                    backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "inherit", "& td": { border: "1px solid #ccc", py: 1 }
                   }}>
                     <TableCell align="center" sx={{
                       width: 48,
