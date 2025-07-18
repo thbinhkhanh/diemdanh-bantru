@@ -9,7 +9,7 @@ export function formatExcel_Backup(dataList, columnDates, year, selectedClass) {
     "maDinhDanh",
     "hoVaTen",
     "lop",
-    "huyDangKy",
+    //"huyDangKy",
     ...columnDates,
   ];
 
@@ -20,7 +20,7 @@ export function formatExcel_Backup(dataList, columnDates, year, selectedClass) {
       item.maDinhDanh || "",
       item.hoVaTen || "",
       item.lop || "",
-      item.huyDangKy || "",
+      //item.huyDangKy || "",
     ];
 
     columnDates.forEach((dateStr) => {
@@ -40,7 +40,7 @@ export function formatExcel_Backup(dataList, columnDates, year, selectedClass) {
     { wch: 20 },  // maDinhDanh
     { wch: 30 },  // hoVaTen
     { wch: 8 },   // lop
-    { wch: 12 },  // huyDangKy
+    //{ wch: 12 },  // huyDangKy
     ...columnDates.map(() => ({ wch: 12 })),  // các ngày
   ];
 

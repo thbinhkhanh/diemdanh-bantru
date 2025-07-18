@@ -4,14 +4,12 @@ import {
   getDocs,
   Timestamp,
   doc,
-  //setDoc,
+  setDoc,
   getDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { formatExcel_Backup } from "./formatExcel_Backup.js";
-
-
-//import * as XLSX from "xlsx";
+import { exportFormattedExcel } from "./formatExcel.js";
+import * as XLSX from "xlsx";
 
 /** 🎯 Sao lưu toàn bộ Firestore sang JSON theo năm học */
 export const downloadBackupAsJSON = async (selectedDataTypes) => {
@@ -73,7 +71,7 @@ export const downloadBackupAsJSON = async (selectedDataTypes) => {
     link.download = filename;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    console.log("✅ Đã tạo file JSON sao lưu!");
+    //console.log("✅ Đã tạo file JSON sao lưu!");
   } catch (error) {
     console.error("❌ Lỗi khi tạo file JSON:", error);
     alert("❌ Không thể sao lưu dữ liệu.");
@@ -107,7 +105,7 @@ export const downloadBackupAsExcel = async (selectedDataTypes) => {
         hoVaTen: rawData.hoVaTen || "",
         lop: rawData.lop || "",
         maDinhDanh: rawData.maDinhDanh || "",
-        huyDangKy: rawData.huyDangKy || "",
+        //huyDangKy: rawData.huyDangKy || "",
         banTruNgay: {},
       };
 
@@ -137,8 +135,7 @@ export const downloadBackupAsExcel = async (selectedDataTypes) => {
     const columnDates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
     const selectedClass = "Tất cả";
 
-    formatExcel_Backup(rawDocs, columnDates, namHocValue, selectedClass);
-    
+    //formatExcel(rawDocs, columnDates, namHocValue, selectedClass);
   } catch (error) {
     console.error("❌ Lỗi khi tạo file Excel:", error);
     alert("❌ Không thể sao lưu dữ liệu Excel.");

@@ -74,27 +74,31 @@ export default function ThongKeThang({ onBack }) {
 
   // Hàm xử lý dữ liệu học sinh + thống kê bán trú, rồi set dataList
   const processStudentData = (rawStudents, banTruData, className, selectedDate) => {
-    const selectedDateStr = format(selectedDate, "yyyy-MM");
+    const selectedMonthStr = format(selectedDate, "yyyy-MM");
 
-    // ✅ enrich từ dữ liệu gốc
-    const enriched = enrichStudents(rawStudents, selectedDateStr, className, true);
+    // ⚠️ Lọc học sinh đã đăng ký bán trú
+    const filteredStudents = rawStudents.filter(stu => stu.dangKyBanTru === true);
 
-    // ✅ gắn trạng thái registered
-    const enrichedWithRegister = enriched.map((s, index) => {
-      const ma = s.maDinhDanh;
+    //console.log("🧑‍🎓 Học sinh đăng ký bán trú:", filteredStudents.length);
+
+    const enriched = enrichStudents(filteredStudents, selectedMonthStr, className, true);
+    //console.log("🔍 Số học sinh sau enrich:", enriched.length);
+
+    const enrichedWithRegister = enriched.map((student, index) => {
+      const maID = student.maDinhDanh?.trim();
+      const lop = student.lop?.trim();
+      const key = `${lop}-${maID?.replace(`${lop}-`, "")}`;
       const daySummary = {};
       let total = 0;
 
-      banTruData.forEach(record => {
-        if (
-          record.maDinhDanh === ma &&
-          record.lop === className &&
-          record.thang === selectedDateStr &&
-          record.ngay
-        ) {
-          const dateObj = new Date(record.ngay);
-          if (!isNaN(dateObj)) {
-            const day = dateObj.getDate();
+      banTruData.forEach(doc => {
+        const dateStr = doc.id;
+        const danhSachAn = doc.danhSachAn || [];
+        const dateObj = new Date(dateStr);
+
+        if (!isNaN(dateObj)) {
+          const day = dateObj.getDate();
+          if (danhSachAn.includes(key)) {
             daySummary[day] = "✓";
             total += 1;
           }
@@ -102,20 +106,21 @@ export default function ThongKeThang({ onBack }) {
       });
 
       return {
-        ...s,
+        ...student,
         stt: index + 1,
         daySummary,
         total
       };
     });
 
-    const sorted = MySort(enrichedWithRegister).map((s, idx) => ({
-      ...s,
+    const sorted = MySort(enrichedWithRegister).map((student, idx) => ({
+      ...student,
       stt: idx + 1
     }));
 
     setDataList(sorted);
   };
+
 
   // Load học sinh khi selectedClass hoặc selectedDate thay đổi
   useEffect(() => {
@@ -140,12 +145,7 @@ export default function ThongKeThang({ onBack }) {
             where("lop", "==", selectedClass)
           ));
 
-          //const danhSachData = danhSachSnap.docs.map(d => d.data()).filter(hs => {
-          //  const huy = (hs.huyDangKy || "").toUpperCase();
-          //  return huy === "" || huy === "T";
-          //});
           const danhSachData = danhSachSnap.docs.map(d => d.data());
-
 
           // ✅ enrich dữ liệu
           const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
@@ -160,7 +160,13 @@ export default function ThongKeThang({ onBack }) {
 
         // Lấy dữ liệu bán trú
         const banTruSnap = await getDocs(collection(db, `BANTRU_${namHocValue}`));
-        const banTruData = banTruSnap.docs.map(doc => doc.data());
+        const banTruData = banTruSnap.docs.map(doc => {
+          const id = doc.id;
+          const danhSachAn = doc.data().danhSachAn || [];
+          //console.log(`📅 Ngày ${id}:`, danhSachAn);
+          return { id, danhSachAn };
+        });
+        //console.log("📦 Tổng số ngày trong BANTRU:", banTruData.length);
 
         // Xử lý và set dataList
         processStudentData(rawData, banTruData, selectedClass, selectedDate);
@@ -333,7 +339,7 @@ export default function ThongKeThang({ onBack }) {
                   key={student.id}
                   sx={{
                     height: 48,
-                    backgroundColor: student.huyDangKy?.toLowerCase() === "x" ? "#f0f0f0" : "inherit",
+                    backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "inherit",
                     "& td": { border: "1px solid #ccc", py: 1 },
                   }}
                 >
@@ -344,7 +350,7 @@ export default function ThongKeThang({ onBack }) {
                       px: 1,
                       position: "sticky",
                       left: 0,
-                      backgroundColor: student.huyDangKy?.toLowerCase() === "x" ? "#f0f0f0" : "#fff",
+                      backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "#fff",
                       zIndex: 1,
                     }}
                   >
@@ -357,7 +363,7 @@ export default function ThongKeThang({ onBack }) {
                       px: 1,
                       position: "sticky",
                       left: 48,
-                      backgroundColor: student.huyDangKy?.toLowerCase() === "x" ? "#f0f0f0" : "#fff",
+                      backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "#fff",
                       zIndex: 1,
                     }}
                   >
@@ -370,7 +376,7 @@ export default function ThongKeThang({ onBack }) {
                         {student.daySummary[d] || ""}
                       </TableCell>
                     ))}
-                  <TableCell align="center" sx={{ fontWeight: "bold", px: 1 }}>
+                  <TableCell align="center" sx={{ px: 1 }}>
                     {student.total > 0 ? student.total : ""}
                   </TableCell>
                 </TableRow>

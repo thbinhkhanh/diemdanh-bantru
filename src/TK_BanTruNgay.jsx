@@ -13,21 +13,38 @@ import { format } from "date-fns";
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
-// Group dữ liệu theo khối và lớp
-function groupData(banTruData, danhSachData, selectedDate) {
+function groupData(banTruDataRaw, danhSachData) {
+  // 🔄 Chuyển dữ liệu điểm danh từ object field số → mảng mã học sinh
+  const banTruData = Array.isArray(banTruDataRaw)
+    ? banTruDataRaw
+    : Object.values(banTruDataRaw || {}); // Đề phòng dữ liệu rỗng hoặc lỗi
+
+  // ✅ Tạo Set chứa mã học sinh đã điểm danh
+  const banTruIds = new Set(banTruData.map(id => id?.trim()));
+
+  //console.log("📦 Tổng mã học sinh điểm danh hôm nay:", banTruIds.size);
+  //console.log("📌 Mã học sinh đã điểm danh:", Array.from(banTruIds));
+
   const khoiData = {};
   let truongSiSo = 0;
   let truongAn = 0;
-  const ngayChon = format(selectedDate, "yyyy-MM-dd");
 
-  // 🔢 Thống kê sĩ số từ DANHSACH_...
-  danhSachData.forEach(student => {
-    const lop = student.lop?.toString().trim();
-    const khoi = lop?.split(".")[0];
-    const huyDK = (student.huyDangKy || "").toUpperCase();
+  danhSachData.forEach((student, index) => {
+    const {
+      maDinhDanh,
+      lop,
+      dangKyBanTru
+    } = student;
 
-    if (!lop || !khoi) return;
-    if (huyDK !== "" && huyDK !== "T") return;
+    //console.log(`🧪 [${index + 1}] học sinh:`, student);
+
+    if (!lop || !dangKyBanTru || !maDinhDanh) {
+      //console.log(`⚠️ Bỏ qua: maDinhDanh=${maDinhDanh}, lop=${lop}, dangKyBanTru=${dangKyBanTru}`);
+      return;
+    }
+
+    const khoi = lop.toString().trim().split(".")[0];
+    const maID = maDinhDanh.trim();
 
     khoiData[khoi] = khoiData[khoi] || {
       group: `KHỐI ${khoi}`,
@@ -44,26 +61,25 @@ function groupData(banTruData, danhSachData, selectedDate) {
       isGroup: false,
     };
 
+    // ✅ Tăng sĩ số nếu đăng ký ăn bán trú hiện tại
     khoiData[khoi].children[lop].siSo += 1;
     khoiData[khoi].siSo += 1;
     truongSiSo += 1;
+
+    // ✅ Tăng số học sinh ăn nếu có mặt trong điểm danh hôm nay
+    if (banTruIds.has(maID)) {
+      khoiData[khoi].children[lop].anBanTru += 1;
+      khoiData[khoi].anBanTru += 1;
+      truongAn += 1;
+      //console.log(`✅ ${maID} đã điểm danh`);
+    } else {
+      //console.log(`🚫 ${maID} chưa điểm danh`);
+    }
   });
 
-  // 🍱 Thống kê ăn bán trú từ BANTRU_... theo ngày chọn
-  banTruData.forEach(record => {
-    const { lop, khoi, ngay } = record;
-    const lopClean = lop?.toString().trim();
-    const khoiClean = khoi?.toString().trim();
+  //console.log("✅ Tổng sĩ số toàn trường:", truongSiSo);
+  //console.log("✅ Tổng học sinh đã ăn bán trú:", truongAn);
 
-    if (ngay !== ngayChon || !lopClean || !khoiClean) return;
-    if (!khoiData[khoiClean] || !khoiData[khoiClean].children[lopClean]) return;
-
-    khoiData[khoiClean].children[lopClean].anBanTru += 1;
-    khoiData[khoiClean].anBanTru += 1;
-    truongAn += 1;
-  });
-
-  // 📊 Tổng hợp dữ liệu
   const summaryData = [];
   const khoiList = Object.keys(khoiData).sort();
 
@@ -89,10 +105,11 @@ function groupData(banTruData, danhSachData, selectedDate) {
     isGroup: true,
   });
 
+  //console.log("📊 Kết quả thống kê tóm tắt:", summaryData);
+
   return summaryData;
 }
 
-// Component render từng dòng
 function Row({ row, openGroups, setOpenGroups, summaryData }) {
   const isOpen = openGroups.includes(row.group);
   const isTruong = row.group === "TRƯỜNG";
@@ -135,8 +152,8 @@ function Row({ row, openGroups, setOpenGroups, summaryData }) {
       </TableRow>
 
       {isGroup && isOpen &&
-        subRows.map((subRow, i) => (
-          <TableRow key={i} sx={{ backgroundColor: "#f9fbe7", "&:hover": { backgroundColor: "#f0f4c3" } }}>
+        subRows.map(subRow => (
+          <TableRow key={subRow.group} sx={{ backgroundColor: "#f9fbe7", "&:hover": { backgroundColor: "#f0f4c3" } }}>
             <TableCell sx={{ pl: 6, textAlign: "center" }}>{subRow.group}</TableCell>
             <TableCell align="center">{subRow.siSo}</TableCell>
             <TableCell align="center">{subRow.anBanTru}</TableCell>
@@ -146,7 +163,6 @@ function Row({ row, openGroups, setOpenGroups, summaryData }) {
   );
 }
 
-// Hàm chính
 export default function ThongKeTheoNgay({ onBack }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [dataList, setDataList] = useState([]);
@@ -155,50 +171,58 @@ export default function ThongKeTheoNgay({ onBack }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
-      const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
+    const fetchData = async () => {
+      setIsLoading(true);
 
-      if (!namHocValue) {
-        console.error("❌ Không tìm thấy năm học hiện tại trong hệ thống!");
+      try {
+        // 📦 Lấy năm học hiện tại
+        const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
+        const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
+
+        if (!namHocValue) {
+          console.error("❌ Không tìm thấy năm học hiện tại trong hệ thống!");
+          setIsLoading(false);
+          return;
+        }
+
+        // 🗓 Format ngày thành chuỗi yyyy-MM-dd
+        const dateStr = format(selectedDate, "yyyy-MM-dd");
+
+        // 🔄 Lấy document bán trú theo ngày và danh sách toàn trường
+        const [banTruDoc, danhSachSnap] = await Promise.all([
+          getDoc(doc(db, `BANTRU_${namHocValue}`, dateStr)),
+          getDocs(collection(db, `DANHSACH_${namHocValue}`)),
+        ]);
+
+        // ✅ Tách dữ liệu đúng nguồn
+        const banTruData = banTruDoc.exists() ? banTruDoc.data().danhSachAn : [];
+        const danhSachData = danhSachSnap.docs.map(doc => doc.data());
+
+        // 🔍 Kiểm tra dữ liệu đầu vào
+        //console.log("🔍 Tổng số học sinh đăng ký ăn bán trú:", danhSachData.length);
+        //console.log("🔍 Số học sinh đã điểm danh hôm nay:", banTruData.length);
+        //console.log("📌 Mã học sinh đã điểm danh:", banTruData.map(d => d.maDinhDanh?.trim()));
+        //console.log("📌 Mã học sinh đăng ký ăn:", danhSachData.map(d => d.maDinhDanh?.trim()));
+
+        // 🚀 Gọi hàm thống kê
+        setDataList(banTruData);
+        const summary = groupData(banTruData, danhSachData);
+        setSummaryData(summary);
+      } catch (err) {
+        console.error("❌ Lỗi khi tải dữ liệu từ Firebase:", err);
+      } finally {
         setIsLoading(false);
-        return;
       }
+    };
 
-      const [banTruSnap, danhSachSnap] = await Promise.all([
-        getDocs(collection(db, `BANTRU_${namHocValue}`)),
-        getDocs(collection(db, `DANHSACH_${namHocValue}`)),
-      ]);
-
-      const banTruData = banTruSnap.docs.map(doc => doc.data());
-      const danhSachData = danhSachSnap.docs.map(doc => doc.data());
-
-      setDataList(banTruData); // Optional: nếu bạn đang dùng dataList cho việc khác
-      const summary = groupData(banTruData, danhSachData, selectedDate);
-      setSummaryData(summary);
-    } catch (err) {
-      console.error("❌ Lỗi khi tải dữ liệu từ Firebase:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  fetchData();
-}, [selectedDate]);
+    fetchData();
+  }, [selectedDate]);
 
   return (
     <Box sx={{ maxWidth: 500, marginLeft: "auto", marginRight: "auto", paddingLeft: 0.5, paddingRight: 0.5, mt: 2 }}>
       <Paper elevation={3} sx={{ p: 4, borderRadius: 4 }}>
         <Box sx={{ mb: 5 }}>
-          <Typography
-            variant="h5"
-            fontWeight="bold"
-            color="primary"
-            align="center"
-            sx={{ mb: 1 }}
-          >
+          <Typography variant="h5" fontWeight="bold" color="primary" align="center" sx={{ mb: 1 }}>
             TỔNG HỢP NGÀY
           </Typography>
           <Box sx={{ height: "2px", width: "100%", backgroundColor: "#1976d2", borderRadius: 1, mt: 2, mb: 4 }} />
@@ -229,9 +253,13 @@ export default function ThongKeTheoNgay({ onBack }) {
           </Box>
         </LocalizationProvider>
 
-        {isLoading && <LinearProgress />}
+        {isLoading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <LinearProgress sx={{ width: '50%' }} />
+          </Box>
+        )}
 
-        <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 2 }}>
+          <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 2 }}>
           <Table>
             <TableHead>
               <TableRow sx={{ backgroundColor: '#1976d2' }}>
@@ -243,15 +271,15 @@ export default function ThongKeTheoNgay({ onBack }) {
             <TableBody>
               {summaryData
                 .filter(row => row.isGroup)
-                .map((row, index) => (
+                .map(row => (
                   <Row
-                    key={index}
+                    key={row.group}
                     row={row}
                     openGroups={openGroups}
                     setOpenGroups={setOpenGroups}
                     summaryData={summaryData}
                   />
-                ))}
+              ))}
             </TableBody>
           </Table>
         </TableContainer>

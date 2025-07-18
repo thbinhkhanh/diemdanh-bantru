@@ -20,50 +20,57 @@ import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 // Hàm gom nhóm dữ liệu theo lớp và khối
-function groupData(data) {
+async function groupData(namHocValue) {
+  const danhsachSnap = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
+  const allStudents = danhsachSnap.docs.map(doc => doc.data());
+
   const khoiData = {};
   let truongSiSo = 0;
   let truongAn = 0;
 
-  data.forEach(item => {
+  allStudents.forEach(item => {
     const lop = item.lop?.toString().trim();
     const khoi = lop?.split(".")[0];
-    const huyDK = (item.huyDangKy || "").toUpperCase();
+    const isSiSo = item.dangKyBanTru === true;
+    const isAnBanTru = item.diemDanhBanTru === true;
 
     if (!lop || !khoi) return;
 
-    khoiData[khoi] = khoiData[khoi] || {
-      group: `KHỐI ${khoi}`,
-      siSo: 0,
-      anBanTru: 0,
-      isGroup: true,
-      children: {},
-    };
-
-    khoiData[khoi].children[lop] = khoiData[khoi].children[lop] || {
-      group: lop,
-      siSo: 0,
-      anBanTru: 0,
-      isGroup: false,
-    };
-
-    if (huyDK !== "X") {
-      khoiData[khoi].children[lop].siSo += 1;
-      khoiData[khoi].siSo += 1;
-      truongSiSo += 1;
+    if (!khoiData[khoi]) {
+      khoiData[khoi] = {
+        group: `KHỐI ${khoi}`,
+        siSo: 0,
+        anBanTru: 0,
+        isGroup: true,
+        children: {},
+      };
     }
 
-    if (huyDK === "T") {
-      khoiData[khoi].children[lop].anBanTru += 1;
-      khoiData[khoi].anBanTru += 1;
-      truongAn += 1;
+    if (!khoiData[khoi].children[lop]) {
+      khoiData[khoi].children[lop] = {
+        group: lop,
+        siSo: 0,
+        anBanTru: 0,
+        isGroup: false,
+      };
+    }
+
+    if (isSiSo) {
+      khoiData[khoi].siSo += 1;
+      khoiData[khoi].children[lop].siSo += 1;
+      truongSiSo += 1;
+
+      if (isAnBanTru) {
+        khoiData[khoi].anBanTru += 1;
+        khoiData[khoi].children[lop].anBanTru += 1;
+        truongAn += 1;
+      }
     }
   });
 
   const summaryData = [];
-  const khoiList = Object.keys(khoiData).sort();
 
-  for (const khoi of khoiList) {
+  Object.keys(khoiData).sort().forEach(khoi => {
     const khoiItem = khoiData[khoi];
     summaryData.push({
       group: khoiItem.group,
@@ -72,11 +79,10 @@ function groupData(data) {
       isGroup: true,
     });
 
-    const lopList = Object.keys(khoiItem.children).sort();
-    for (const lop of lopList) {
+    Object.keys(khoiItem.children).sort().forEach(lop => {
       summaryData.push(khoiItem.children[lop]);
-    }
-  }
+    });
+  });
 
   summaryData.push({
     group: "TRƯỜNG",
@@ -167,7 +173,7 @@ export default function SoLieuTrongNgay({ onBack }) {
         const allData = snapshot.docs.map(doc => doc.data());
 
         // ✅ Gọi hàm groupData để thống kê
-        const summary = groupData(allData);
+        const summary = await groupData(namHocValue);
         setSummaryData(summary);
       } catch (error) {
         console.error("❌ Lỗi khi lấy dữ liệu Firestore:", error);
@@ -179,9 +185,6 @@ export default function SoLieuTrongNgay({ onBack }) {
 
     fetchData();
   }, []);
-
-
-
 
   return (
     <Box

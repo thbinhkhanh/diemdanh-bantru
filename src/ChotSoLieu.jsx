@@ -22,7 +22,7 @@ function groupData(data) {
   data.forEach(item => {
     const lop = item.lop?.toString().trim();
     const khoi = item.khoi?.toString().trim();
-    const anBanTru = item.huyDangKy === true;
+    const anBanTru = item.diemDanhBanTru === true;
 
     if (!lop || !khoi) return;
 
@@ -195,28 +195,14 @@ export default function ChotSoLieu({ onBack }) {
           hoVaTen = "",
           lop = "",
           khoi = "",
-          huyDangKy = "",
+          //huyDangKy = "",
+          dangKyBanTru,
+          diemDanhBanTru,
         } = hs;
 
         const lopKey = lop.toString().trim();
         const khoiKey = khoi.toString().trim();
         if (!lopKey || !khoiKey) return;
-
-        const docId = `${maDinhDanh}-${formattedDate}`; // ✅ dấu gạch ngang
-
-        banTruDocs.push({
-          docId,
-          data: {
-            maDinhDanh,
-            hoVaTen,
-            lop: lopKey,
-            khoi: khoiKey,
-            ngay: formattedDate,
-            thang: formattedDate.slice(0, 7),
-            nam: formattedDate.slice(0, 4),
-            huyDangKy,
-          },
-        });
 
         if (!lopMap[khoiKey]) {
           lopMap[khoiKey] = { siSo: 0, anBanTru: 0, children: {} };
@@ -225,21 +211,34 @@ export default function ChotSoLieu({ onBack }) {
           lopMap[khoiKey].children[lopKey] = { siSo: 0, anBanTru: 0 };
         }
 
-        const isAn = huyDangKy === "T";
-        const isValidSiSo = huyDangKy === "T" || huyDangKy === "";
-
-        if (isValidSiSo) {
+        // ✅ Sĩ số: học sinh có đăng ký bán trú hiện tại
+        if (dangKyBanTru === true) {
           lopMap[khoiKey].siSo += 1;
           lopMap[khoiKey].children[lopKey].siSo += 1;
           truong.siSo += 1;
-        }
 
-        if (isAn) {
-          lopMap[khoiKey].anBanTru += 1;
-          lopMap[khoiKey].children[lopKey].anBanTru += 1;
-          truong.anBanTru += 1;
-        }
+          // ✅ Có điểm danh ăn hôm nay → tăng số ăn bán trú
+          if (diemDanhBanTru === true) {
+            lopMap[khoiKey].anBanTru += 1;
+            lopMap[khoiKey].children[lopKey].anBanTru += 1;
+            truong.anBanTru += 1;
 
+            const docId = `${maDinhDanh}-${formattedDate}`;
+            banTruDocs.push({
+              docId,
+              data: {
+                maDinhDanh,
+                hoVaTen,
+                lop: lopKey,
+                khoi: khoiKey,
+                ngay: formattedDate,
+                thang: formattedDate.slice(0, 7),
+                nam: formattedDate.slice(0, 4),
+                //huyDangKy,
+              },
+            });
+          }
+        }
       });
 
       const summaryData = [];
@@ -279,58 +278,89 @@ export default function ChotSoLieu({ onBack }) {
 
       setSummaryData(summaryData);
       setShowSuccess(true);
-
+      
       setTimeout(async () => {
         try {
-          const banTruRef = collection(db, `BANTRU_${namHocValue}`);
-          const existingSnap = await getDocs(banTruRef);
+          // 👉 Bước 1: Lấy danh sách học sinh từ DANHSACH_{namHocValue}
+          const snapshot = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
+          const students = snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
 
-          const existingDocsMap = {};
-          existingSnap.forEach(docSnap => {
-            const data = docSnap.data();
-            if (data.ngay === formattedDate) {
-              existingDocsMap[docSnap.id] = true;
+          // 👉 Bước 2: Lấy document điểm danh của ngày hôm nay nếu đã tồn tại
+          const docId = formattedDate;
+          const docRef = doc(db, `BANTRU_${namHocValue}`, docId);
+          const docSnap = await getDoc(docRef);
+
+          let danhSachAnSet = new Set();
+          if (docSnap.exists()) {
+            const existing = docSnap.data().danhSachAn || [];
+            danhSachAnSet = new Set(existing);
+          }
+
+          // 👉 Bước 3: Chuẩn bị danh sách log
+          let ghiMoiList = [];
+          let daCoBoQuaList = [];
+          let daXoaList = [];
+          let khongCoDeXoaList = [];
+
+          // 👉 Bước 4: Cập nhật danh sách theo điểm danh mới
+          students.forEach(({ data }) => {
+            const {
+              maDinhDanh,
+              hoVaTen,
+              lop,
+              diemDanhBanTru,
+              dangKyBanTru
+            } = data;
+
+            if (!dangKyBanTru || !maDinhDanh) return;
+
+            const logInfo = `${hoVaTen} | Lớp: ${lop} | Ngày: ${formattedDate} | ID: ${maDinhDanh}`;
+
+            if (diemDanhBanTru === true) {
+              // ✅ Có ăn → thêm nếu chưa có
+              if (!danhSachAnSet.has(maDinhDanh)) {
+                danhSachAnSet.add(maDinhDanh);
+                ghiMoiList.push(logInfo);
+              } else {
+                daCoBoQuaList.push(logInfo);
+              }
+            } else if (diemDanhBanTru === false) {
+              // ❌ Không ăn → xoá nếu đang có
+              if (danhSachAnSet.has(maDinhDanh)) {
+                danhSachAnSet.delete(maDinhDanh);
+                daXoaList.push(logInfo);
+              } else {
+                khongCoDeXoaList.push(logInfo);
+              }
             }
           });
 
-          const isEmpty = Object.keys(existingDocsMap).length === 0;
-          const batch = writeBatch(db);
-
-          banTruDocs.forEach(item => { 
-            const { docId, data } = item;
-            const huyDangKy = data.huyDangKy || "";
-            const logInfo = `${data.hoVaTen} | Lớp: ${data.lop} | Ngày: ${data.ngay}`;
-
-            // ❌ Nếu huyDangKy là "" hoặc "x" → XÓA nếu có
-            if (huyDangKy === "" || huyDangKy === "x") {
-              if (existingDocsMap[docId]) {
-                batch.delete(doc(db, `BANTRU_${namHocValue}`, docId));
-                // console.log("🗑️ XOÁ:", logInfo, "| huyDangKy:", huyDangKy);
-              } else {
-                // console.log("⚠️ KHÔNG CÓ ĐỂ XOÁ:", logInfo);
-              }
-              return; // 🛑 Dừng xử lý bản ghi này
-            }
-
-            // ✅ Nếu huyDangKy là "T" → THÊM nếu chưa có
-            if (huyDangKy === "T") {
-              if (!existingDocsMap[docId]) {
-                batch.set(doc(db, `BANTRU_${namHocValue}`, docId), data);
-                // console.log("📥 GHI MỚI:", logInfo);
-              } else {
-                // console.log("✅ BỎ QUA (đã tồn tại):", logInfo);
-              }
-            }
-
-            // 👉 Các giá trị khác của huyDangKy thì bỏ qua không làm gì
+          // 👉 Bước 5: Ghi lại danh sách mới vào Firestore
+          const updatedList = Array.from(danhSachAnSet);
+          await setDoc(docRef, {
+            ngay: formattedDate,
+            danhSachAn: updatedList
           });
 
-          await batch.commit();
-          console.log("✅ Ghi dữ liệu nền hoàn tất:", formattedDate);
+          // 👉 Bước 6: Log kết quả đầy đủ
+          console.log("📥 Ghi mới (thêm):", ghiMoiList.length, ghiMoiList);
+          console.log("🔁 Bỏ qua (đã có):", daCoBoQuaList.length);
+          console.log("🗑 Đã xoá:", daXoaList.length);
+          if (daXoaList.length > 0) {
+            console.log("🗑 Danh sách học sinh bị xoá:");
+            daXoaList.forEach(info => {
+              console.log("   - " + info);
+            });
+          }
+          console.log("⚠️ Không có để xoá:", khongCoDeXoaList.length);
+          console.log("✅ Cập nhật danh sách ăn bán trú xong:", formattedDate);
+
         } catch (err) {
-          console.error("❌ Ghi dữ liệu nền thất bại:", err);
+          console.error("❌ Lỗi cập nhật danh sách bán trú:", err);
         }
       }, 100);
+
+
     } catch (err) {
       console.error("❌ Lỗi khi xử lý:", err);
       setErrorMessage("❌ Lỗi trong quá trình xử lý dữ liệu!");

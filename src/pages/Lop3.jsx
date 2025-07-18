@@ -531,7 +531,7 @@ export default function Lop3() {
 
               <TableBody>
                 {(viewMode === 'bantru'
-                  ? students.filter(s => s.huyDangKy !== "x")
+                  ? students.filter(s => s.dangKyBanTru === true)
                   : students
                 ).map((s, index) => (
                   <React.Fragment key={s.id}>
@@ -586,8 +586,7 @@ export default function Lop3() {
 
                       {viewMode === 'bantru' && (
                         <TableCell align="center" sx={{ px: { xs: 1, sm: 2 }, width: { xs: 50, sm: 'auto' } }}>
-                          <Checkbox
-                            //checked={s.huyDangKy === "T"}
+                          <Checkbox                            
                             checked={s.registered}
                             //onChange={() => toggleRegister(index)}
                             onChange={() => {

@@ -141,14 +141,22 @@ export default function TaiDanhSach({ onBack }) {
       const lop = row['LỚP']?.toString().trim().toUpperCase();
       const randomId = nanoid();
       const maDinhDanh = `${lop}-${randomId}`;
-      return {
+      const daDangKy = row['ĐĂNG KÝ']?.toString().trim().toLowerCase() === 'x';
+
+      const student = {
         stt: row['STT'] || '',
         maDinhDanh,
         hoVaTen: row['HỌ VÀ TÊN']?.toString().trim(),
         lop,
-        khoi: lop.charAt(0), // ✅ Thêm dòng này để có "khoi"
-        huyDangKy: row['ĐĂNG KÝ']?.toString().trim().toLowerCase() === 'x' ? 'T' : 'x',
+        khoi: lop.charAt(0),
+        dangKyBanTru: daDangKy
       };
+
+      if (daDangKy) {
+        student.diemDanhBanTru = true;
+      }
+
+      return student;
     });
 
     if (studentsNew.length === 0) {

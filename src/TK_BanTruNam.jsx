@@ -81,76 +81,77 @@ export default function ThongKeNam({ onBack }) {
 
     const fetchStudents = async () => {
       setIsLoading(true);
-
-      const key = selectedClass; // ✅ Chỉ dùng tên lớp làm key
+      const key = selectedClass;
 
       try {
         let rawData = getClassData(key);
 
         if (!rawData || rawData.length === 0) {
-          //console.log(`🔥 [FIRESTORE] Chưa có dữ liệu context, tải từ Firestore...`);
-
           const danhSachSnap = await getDocs(query(
             collection(db, `DANHSACH_${namHocValue}`),
             where("lop", "==", selectedClass)
           ));
-
-          //const danhSachData = danhSachSnap.docs
-          //  .map(d => d.data())
-          //  .filter(hs => {
-          //    const huy = (hs.huyDangKy || "").toUpperCase();
-          //    return huy === "" || huy === "T";
-          //  });
           const danhSachData = danhSachSnap.docs.map(d => d.data());
 
           const selectedDateStr = selectedDate.toISOString().split("T")[0];
           const enriched = enrichStudents(danhSachData, selectedDateStr, selectedClass, true);
-
-          //console.log(`✨ [ENRICH] Đã enrich ${enriched.length} học sinh`);
-
-          // ✅ Lưu enriched vào context với key là tên lớp (vd: "1.2")
           setClassData(key, enriched);
           rawData = enriched;
+          //console.log(`✨ Enriched ${enriched.length} học sinh từ DANHSACH_${namHocValue}`);
         } else {
-          //console.log(`📦 [CONTEXT] Dữ liệu đã có trong context với key: ${key}`);
+          //console.log(`📦 Dữ liệu lớp ${key} đã có sẵn trong context`);
         }
 
-        // ✅ Thống kê bán trú
-        const banTruSnap = await getDocs(query(
-          collection(db, `BANTRU_${namHocValue}`),
-          where("lop", "==", selectedClass)
-        ));
+        // ✅ Lấy toàn bộ dữ liệu bán trú theo cấu trúc mới
+        const banTruSnap = await getDocs(collection(db, `BANTRU_${namHocValue}`));
+        const banTruData = banTruSnap.docs.map(doc => ({
+          id: doc.id, // "2025-07-15"
+          danhSachAn: doc.data().danhSachAn || []
+        }));
 
-        const banTruData = banTruSnap.docs.map(doc => doc.data());
+        //console.log("📦 Tổng số bản ghi BANTRU:", banTruData.length);
 
         const studentMap = {};
-        banTruData.forEach(record => {
-          const { maDinhDanh, thang } = record;
-          if (!maDinhDanh || !thang) return;
+        banTruData.forEach(doc => {
+          const dateObj = new Date(doc.id);
+          if (isNaN(dateObj)) {
+            console.warn(`⚠️ Không thể chuyển đổi ngày từ doc.id = ${doc.id}`);
+            return;
+          }
 
-          const thangSo = parseInt(thang.split("-")[1]);
-          studentMap[maDinhDanh] = studentMap[maDinhDanh] || {
-            monthSummary: {},
-            total: 0,
-          };
+          const month = dateObj.getMonth() + 1;
+          const danhSachAn = doc.danhSachAn || [];
 
-          studentMap[maDinhDanh].monthSummary[thangSo] =
-            (studentMap[maDinhDanh].monthSummary[thangSo] || 0) + 1;
-          studentMap[maDinhDanh].total += 1;
+          danhSachAn.forEach(entry => {
+            const parts = entry.split("-");
+            if (parts.length < 2) return;
+
+            const lopStr = parts[0];
+            const maID = parts.slice(1).join("-");
+
+            if (lopStr !== selectedClass || !maID) return;
+
+            studentMap[maID] = studentMap[maID] || { monthSummary: {}, total: 0 };
+            studentMap[maID].monthSummary[month] =
+              (studentMap[maID].monthSummary[month] || 0) + 1;
+            studentMap[maID].total += 1;
+          });
         });
 
-        const students = rawData.map((hs, index) => {
-          const summary = studentMap[hs.maDinhDanh] || {};
+        //console.log("📊 studentMap thống kê:", studentMap);
+        const filteredRawData = rawData.filter(hs => hs.dangKyBanTru === true);
+        const students = filteredRawData.map((hs, index) => {
+          const ma = hs.maDinhDanh?.trim().replace(`${selectedClass}-`, "");
+          const summary = studentMap[ma] || {};
           return {
             ...hs,
             monthSummary: summary.monthSummary || {},
             total: summary.total || 0,
-            stt: index + 1,
+            stt: index + 1
           };
         });
 
         const sorted = MySort(students).map((s, idx) => ({ ...s, stt: idx + 1 }));
-
         setDataList(sorted);
         setMonthSet(Array.from({ length: 12 }, (_, i) => i + 1));
       } catch (err) {
@@ -285,7 +286,7 @@ export default function ThongKeNam({ onBack }) {
                 {dataList.map((student) => (
                   <TableRow key={student.id} sx={{
                     height: 44,
-                    backgroundColor: student.huyDangKy?.toLowerCase() === "x" ? "#f0f0f0" : "inherit",
+                    backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "inherit",
                     "& td": { border: "1px solid #ccc", py: 1 }
                   }}>
                     <TableCell align="center" sx={{

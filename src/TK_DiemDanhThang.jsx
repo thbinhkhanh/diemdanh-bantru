@@ -49,10 +49,10 @@ export default function DiemDanhThang({ onBack }) {
 
   const headCellStyle = {
     fontWeight: "bold",
-    backgroundColor: theme.palette.grey[200],
+    backgroundColor: theme.palette.primary.main, // ✅ đổi từ `theme.palette.grey[200]`
+    color: "#fff",                                // ✅ chữ màu trắng
     border: "1px solid #ccc",
   };
-
 
   useEffect(() => {
     const fetchClassList = async () => {
@@ -330,8 +330,7 @@ export default function DiemDanhThang({ onBack }) {
                 <TableRow
                   key={student.id}
                   sx={{
-                    height: 48,
-                    //backgroundColor: student.huyDangKy?.toLowerCase() === "x" ? "#f0f0f0" : "inherit",
+                    height: 48,                    
                     "& td": { border: "1px solid #ccc", py: 1 },
                   }}
                 >
@@ -386,14 +385,12 @@ export default function DiemDanhThang({ onBack }) {
                       );
                     })}
 
-
-                  <TableCell align="center" sx={{ fontWeight: "bold", px: 1 }}>
+                  <TableCell align="center" sx={{px: 1 }}>                    
                     {student.total > 0 ? student.total : ""}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
-
 
           </Table>
         </TableContainer>

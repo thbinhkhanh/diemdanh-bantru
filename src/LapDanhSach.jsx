@@ -87,12 +87,16 @@ export default function LapDanhSach({ onBack }) {
         const cached = getClassData(selectedClass);
         if (cached && cached.length > 0) {
           const sortedCached = MySort(cached); // 👉 thêm dòng này để sắp xếp
-          const transformedCached = sortedCached.map((s, index) => ({
-            ...s,
-            stt: index + 1,
-            registered: s.huyDangKy !== 'x',
-            originalRegistered: s.huyDangKy !== 'x',
-          }));
+          const transformedCached = sortedCached.map((s, index) => {
+            const isRegistered = s.dangKyBanTru === true;
+            return {
+              ...s,
+              stt: index + 1,
+              registered: isRegistered,
+              originalRegistered: isRegistered,
+            };
+          });
+
           setFilteredStudents(transformedCached);
           setAllStudents(transformedCached);
           return;
@@ -107,12 +111,16 @@ export default function LapDanhSach({ onBack }) {
         const studentsOfClass = rawStudents.filter(s => s.lop === selectedClass);
         const enriched = enrichStudents(studentsOfClass, null, selectedClass, true);
 
-        const enrichedStudents = MySort(enriched).map((s, index) => ({
-          ...s,
-          stt: index + 1,
-          registered: s.huyDangKy !== 'x',
-          originalRegistered: s.huyDangKy !== 'x',
-        }));
+        const enrichedStudents = MySort(enriched).map((s, index) => {
+          const isRegistered = s.dangKyBanTru === true;
+          return {
+            ...s,
+            stt: index + 1,
+            registered: isRegistered,
+            originalRegistered: isRegistered,
+          };
+        });
+
 
         setClassData(selectedClass, enrichedStudents);
         setFilteredStudents(enrichedStudents);
@@ -187,34 +195,23 @@ const handleClassChange = (event) => {
         return;
       }
 
-      //console.log("🔄 Học sinh được cập nhật:", changedStudents.map(s => ({
-      //  id: s.id,
-      //  hoVaTen: s.hoVaTen,
-      //  từ: s.originalRegistered,
-      //  thành: s.registered
-      //})));
-
       for (let student of changedStudents) {
-        const huyDangKy = student.registered ? 'T' : 'x';
-        await updateDoc(doc(db, `DANHSACH_${namHocValue}`, student.id), { huyDangKy });
+        await updateDoc(doc(db, `DANHSACH_${namHocValue}`, student.id), {
+          dangKyBanTru: student.registered,
+          diemDanhBanTru: student.registered,
+        });
       }
 
-      setAlertInfo({
-        open: true,
-        message: '✅ Lưu thành công!',
-        severity: 'success'
-      });
-
-      // Cập nhật lại local state và context sau khi lưu
+      // Cập nhật lại local state và context
       const updatedAllStudents = allStudents.map(student => {
         const changed = changedStudents.find(s => s.id === student.id);
         if (changed) {
-          const huyDangKy = changed.registered ? 'T' : 'x';
           return {
             ...student,
             registered: changed.registered,
             originalRegistered: changed.registered,
-            huyDangKy,
+            dangKyBanTru: changed.registered,
+            diemDanhBanTru: changed.registered,
           };
         }
         return student;
@@ -224,6 +221,11 @@ const handleClassChange = (event) => {
       setFilteredStudents(updatedAllStudents);
       setClassData(selectedClass, updatedAllStudents);
 
+      setAlertInfo({
+        open: true,
+        message: '✅ Lưu thành công!',
+        severity: 'success'
+      });
     } catch (err) {
       console.error('❌ Lỗi khi lưu dữ liệu:', err);
       setAlertInfo({
@@ -235,6 +237,7 @@ const handleClassChange = (event) => {
       setIsSaving(false);
     }
   };
+
 
 
   return (

@@ -9,13 +9,12 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import vi from "date-fns/locale/vi";
-import { getDocs, getDoc, collection, query, where, doc, updateDoc, writeBatch } from "firebase/firestore";
+import { getDocs, getDoc, setDoc, collection, query, where, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "./firebase";
 import { MySort } from './utils/MySort';
 import { useClassList } from "./context/ClassListContext";
 import { useClassData } from "./context/ClassDataContext";
 import { enrichStudents } from "./pages/ThanhPhan/enrichStudents";
-
 
 export default function DieuChinhSuatAn({ onBack }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -97,96 +96,48 @@ export default function DieuChinhSuatAn({ onBack }) {
     setIsLoading(true);
     try {
       const cached = getClassData(className);
-      if (cached && cached.length > 0) {
-        // ✅ Lấy ngày được chọn
-        const selected = new Date(selectedDate);
-        selected.setHours(0, 0, 0, 0);
-        const adjustedDate = new Date(selected.getTime() + 7 * 60 * 60 * 1000);
-        const selectedDateStr = adjustedDate.toISOString().split("T")[0];
-
-        // 📥 Lấy dữ liệu đăng ký bán trú của ngày đang chọn
-        const qBanTru = query(
-          collection(db, `BANTRU_${nhValue}`),
-          where("lop", "==", className),
-          where("ngay", "==", selectedDateStr)
-        );
-        const banTruSnapshot = await getDocs(qBanTru);
-        const banTruSet = new Set();
-        banTruSnapshot.docs.forEach(doc => banTruSet.add(doc.data().maDinhDanh));
-
-        // 🔁 Cập nhật trạng thái registered theo ngày được chọn
-        const updated = cached.map((s, index) => {
-          const huy = s.huyDangKy || "";
-          const isHuyX = huy === "x";
-          return {
-            ...s,
-            registered: isHuyX ? false : banTruSet.has(s.maDinhDanh),
-            disabled: isHuyX,
-            stt: index + 1,
-          };
-        });
-
-        const sorted = MySort(updated).map((s, i) => ({ ...s, stt: i + 1 }));
-
-        // ✅ Update state
-        const checkedMap = {};
-        sorted.forEach(s => checkedMap[s.maDinhDanh] = s.registered);
-        setDataList(sorted);
-        setOriginalChecked(checkedMap);
-        return;
-      }
-
-
-      // 📥 Nếu chưa có trong context → tải từ Firestore
       const selected = new Date(selectedDate);
       selected.setHours(0, 0, 0, 0);
       const adjustedDate = new Date(selected.getTime() + 7 * 60 * 60 * 1000);
       const selectedDateStr = adjustedDate.toISOString().split("T")[0];
 
-      const qBanTru = query(
-        collection(db, `BANTRU_${nhValue}`),
-        where("lop", "==", className),
-        where("ngay", "==", selectedDateStr)
-      );
-      const banTruSnapshot = await getDocs(qBanTru);
-      const banTruSet = new Set();
-      banTruSnapshot.docs.forEach(doc => banTruSet.add(doc.data().maDinhDanh));
+      let students = [];
+      if (cached && cached.length > 0) {
+        students = cached;
+      } else {
+        const q = query(collection(db, `DANHSACH_${nhValue}`), where("lop", "==", className));
+        const snapshot = await getDocs(q);
+        const rawStudents = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        students = enrichStudents(rawStudents, selectedDateStr, className, true);
+      }
 
-      const q = query(collection(db, `DANHSACH_${nhValue}`), where("lop", "==", className));
-      const snapshot = await getDocs(q);
+      const banTruDocRef = doc(db, `BANTRU_${nhValue}`, selectedDateStr);
+      const banTruSnap = await getDoc(banTruDocRef);
+      let banTruList = [];
+      if (banTruSnap.exists()) {
+        banTruList = banTruSnap.data().danhSachAn || [];
+      }
 
-      const rawStudents = snapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      }));
+      const banTruSet = new Set(banTruList);
 
-      // enrich trước
-      const enriched = enrichStudents(rawStudents, selectedDateStr, className, true);
-
-      // Gán registered đúng theo ngày được chọn
-      const enrichedWithRegister = enriched.map((s, index) => {
-        const huy = s.huyDangKy || "";
-        const isHuyX = huy === "x";
-        return {
+      const filtered = students
+        .filter(s => s.dangKyBanTru === true)
+        .map((s, i) => ({
           ...s,
-          registered: isHuyX ? false : banTruSet.has(s.maDinhDanh),
-          disabled: isHuyX,
-          stt: index + 1,
-        };
-      });
+          stt: i + 1,
+          registered: banTruSet.has(s.maDinhDanh),
+          disabled: false,
+        }));
 
-      const sortedStudents = MySort(enrichedWithRegister).map((s, i) => ({ ...s, stt: i + 1 }));
-
-      // ✅ Cập nhật state và context
       const checkedMap = {};
-      sortedStudents.forEach(s => checkedMap[s.maDinhDanh] = s.registered);
+      filtered.forEach(s => checkedMap[s.maDinhDanh] = s.registered);
 
-      setDataList(sortedStudents);
+      setDataList(filtered);
       setOriginalChecked(checkedMap);
-
-      // ✅ Lưu vào context
-      setClassData(className, sortedStudents);
-
+      setClassData(className, filtered);
     } catch (err) {
       console.error("❌ Lỗi khi tải học sinh:", err);
     } finally {
@@ -201,7 +152,9 @@ export default function DieuChinhSuatAn({ onBack }) {
   const saveData = async () => {
     if (isSaving || !namHocValue) return;
 
-    const changed = dataList.filter(s => s.registered !== originalChecked[s.maDinhDanh]);
+    const changed = dataList.filter(
+      s => s.registered !== originalChecked[s.maDinhDanh]
+    );
     if (changed.length === 0) {
       setSaveSuccess(null);
       return;
@@ -213,62 +166,42 @@ export default function DieuChinhSuatAn({ onBack }) {
       const adjustedDate = new Date(selectedDate.getTime() + 7 * 60 * 60 * 1000);
       const selectedDateStr = adjustedDate.toISOString().split("T")[0];
 
-      // 🔍 Kiểm tra các doc đã có trong BANTRU ngày đang chọn
-      const banTruRef = collection(db, `BANTRU_${namHocValue}`);
-      const existingSnap = await getDocs(banTruRef);
+      const banTruDocRef = doc(db, `BANTRU_${namHocValue}`, selectedDateStr);
+      const banTruSnap = await getDoc(banTruDocRef);
 
-      const existingDocsMap = {};
-      existingSnap.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.ngay === selectedDateStr) {
-          existingDocsMap[docSnap.id] = true;
-          //console.log("📋 Doc tồn tại:", docSnap.id);
-        }
-      });
+      let danhSachAn = [];
+      if (banTruSnap.exists()) {
+        danhSachAn = banTruSnap.data().danhSachAn || [];
+      }
 
-      const batch = writeBatch(db);
+      const updatedSet = new Set(danhSachAn);
 
       changed.forEach(s => {
-        const docId = `${s.maDinhDanh}-${selectedDateStr}`; // ✅ Dấu gạch ngang
-        const docRef = doc(db, `BANTRU_${namHocValue}`, docId);
-        const data = {
-          maDinhDanh: s.maDinhDanh,
-          hoVaTen: s.hoVaTen,
-          lop: selectedClass,
-          khoi: selectedClass?.split(".")[0] || "",
-          ngay: selectedDateStr,
-          thang: selectedDateStr.slice(0, 7),
-          nam: selectedDateStr.slice(0, 4),
-        };
+        const before = originalChecked[s.maDinhDanh];
+        const after = s.registered;
 
-        //console.log("🔎 Đang xử lý:", docId, "| Registered:", s.registered);
+        if (!before && after) {
+          updatedSet.add(s.maDinhDanh);
+          console.log(`📥 Thêm học sinh: ${s.hoVaTen} (${s.maDinhDanh})`);
+        }
 
-        if (s.registered) {
-          if (!existingDocsMap[docId]) {
-            //console.log("📥 Ghi mới:", s.maDinhDanh, "-", s.hoVaTen);
-            batch.set(docRef, data);
-          } else {
-            //console.log("✅ Bỏ qua, đã có rồi:", s.maDinhDanh, "-", s.hoVaTen);
-          }
-        } else {
-          if (existingDocsMap[docId]) {
-            //console.log("🗑️ Xoá:", s.maDinhDanh, "-", s.hoVaTen);
-            batch.delete(docRef);
-          } else {
-            //console.log("⚠️ Không xoá vì chưa tồn tại:", docId);
-          }
+        if (before && !after) {
+          updatedSet.delete(s.maDinhDanh);
+          console.log(`🗑️ Xóa học sinh: ${s.hoVaTen} (${s.maDinhDanh})`);
         }
       });
 
-      await batch.commit();
-      //console.log("✅ Đã cập nhật xong BANTRU cho ngày:", selectedDateStr);
+      await setDoc(banTruDocRef, {
+        ngay: selectedDateStr,
+        danhSachAn: Array.from(updatedSet),
+      });
 
       const updated = { ...originalChecked };
       changed.forEach(s => updated[s.maDinhDanh] = s.registered);
       setOriginalChecked(updated);
       setSaveSuccess(true);
     } catch (err) {
-      console.error("❌ Lỗi khi ghi BANTRU:", err);
+      console.error("❌ Lỗi khi cập nhật BANTRU:", err);
       setSaveSuccess(false);
     } finally {
       setIsSaving(false);
@@ -350,7 +283,7 @@ export default function DieuChinhSuatAn({ onBack }) {
               </TableHead>
               <TableBody>
                 {dataList
-                  .filter(s => s.huyDangKy !== "x")
+                  .filter(s => s.dangKyBanTru === true)
                   .map((s, i) => (
                     <TableRow key={s.maDinhDanh} hover>
                       <TableCell align="center">{i + 1}</TableCell>
