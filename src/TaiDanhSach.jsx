@@ -141,7 +141,7 @@ export default function TaiDanhSach({ onBack }) {
       const lop = row['LỚP']?.toString().trim().toUpperCase();
       const randomId = nanoid();
       const maDinhDanh = `${lop}-${randomId}`;
-      const daDangKy = row['ĐĂNG KÝ']?.toString().trim().toLowerCase() === 'x';
+      const dangKyStr = row['ĐĂNG KÝ']?.toString().trim().toLowerCase();
 
       const student = {
         stt: row['STT'] || '',
@@ -149,10 +149,10 @@ export default function TaiDanhSach({ onBack }) {
         hoVaTen: row['HỌ VÀ TÊN']?.toString().trim(),
         lop,
         khoi: lop.charAt(0),
-        dangKyBanTru: daDangKy
       };
 
-      if (daDangKy) {
+      if (dangKyStr === 'x') {
+        student.dangKyBanTru = true;
         student.diemDanhBanTru = true;
       }
 

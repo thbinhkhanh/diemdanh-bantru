@@ -46,7 +46,6 @@ export default function ThongKeNam({ onBack }) {
 
     const cachedList = getClassList("TRUONG");
     if (cachedList.length > 0) {
-      //console.log("📦 LẤY TỪ CONTEXT (TRUONG):", cachedList);
       setClassList(cachedList);
       setSelectedClass(cachedList[0]);
       return;
@@ -58,11 +57,8 @@ export default function ThongKeNam({ onBack }) {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const list = docSnap.data().list || [];
-          //console.log("🗂️ LẤY TỪ FIRESTORE:", list);
           setClassList(list);
           setSelectedClass(list[0] || "");
-
-          // 🔁 Cập nhật vào context để dùng cho các component khác
           setClassListForKhoi("TRUONG", list);
         } else {
           console.warn("⚠️ Không tìm thấy tài liệu CLASSLIST/TRUONG");
@@ -73,7 +69,8 @@ export default function ThongKeNam({ onBack }) {
     };
 
     fetchClassList();
-  }, [namHocValue]);
+  }, [namHocValue, getClassList, setClassListForKhoi]);
+
 
   // Lấy dữ liệu thống kê 
   useEffect(() => {
@@ -139,7 +136,8 @@ export default function ThongKeNam({ onBack }) {
         });
 
         //console.log("📊 studentMap thống kê:", studentMap);
-        const filteredRawData = rawData.filter(hs => hs.dangKyBanTru === true);
+        //const filteredRawData = rawData.filter(hs => hs.dangKyBanTru === true);
+        const filteredRawData = rawData.filter(hs => 'dangKyBanTru' in hs);
         const students = filteredRawData.map((hs, index) => {
           const ma = hs.maDinhDanh?.trim().replace(`${selectedClass}-`, "");
           const summary = studentMap[ma] || {};

@@ -70,14 +70,16 @@ export default function ThongKeThang({ onBack }) {
     };
 
     fetchClassList();
-  }, []);
+  }, [getClassList, setClassListForKhoi]); // ✅ Đã thêm đầy đủ dependencies
+
 
   // Hàm xử lý dữ liệu học sinh + thống kê bán trú, rồi set dataList
   const processStudentData = (rawStudents, banTruData, className, selectedDate) => {
     const selectedMonthStr = format(selectedDate, "yyyy-MM");
 
     // ⚠️ Lọc học sinh đã đăng ký bán trú
-    const filteredStudents = rawStudents.filter(stu => stu.dangKyBanTru === true);
+    //const filteredStudents = rawStudents.filter(stu => stu.dangKyBanTru === true);
+    const filteredStudents = rawStudents.filter(stu => 'dangKyBanTru' in stu);
 
     //console.log("🧑‍🎓 Học sinh đăng ký bán trú:", filteredStudents.length);
 
@@ -254,7 +256,7 @@ export default function ThongKeThang({ onBack }) {
                   InputProps: {
                     inputComponent: (props) => {
                       const month = selectedDate.getMonth() + 1;
-                      const year = selectedDate.getFullYear();
+                      //const year = selectedDate.getFullYear();
                       return <input {...props} value={`Tháng ${month}`} readOnly />;
                     },
                   },
@@ -375,7 +377,7 @@ export default function ThongKeThang({ onBack }) {
                         {student.daySummary[d] || ""}
                       </TableCell>
                     ))}
-                  <TableCell align="center" sx={{ px: 1 }}>
+                  <TableCell align="center" sx={{px: 1 }}>
                     {student.total > 0 ? student.total : ""}
                   </TableCell>
                 </TableRow>
