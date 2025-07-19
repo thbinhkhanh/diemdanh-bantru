@@ -273,15 +273,28 @@ export default function Lop2() {
     const updatedStudents = [...students];
     updatedStudents[index].registered = !updatedStudents[index].registered;
 
+    console.log('✅ Toggle register:', {
+      id: updatedStudents[index].id,
+      maDinhDanh: updatedStudents[index].maDinhDanh,
+      newValue: updatedStudents[index].registered,
+      originalValue: originalRegistered[updatedStudents[index].id],
+      showRegisterCheckbox: updatedStudents[index].showRegisterCheckbox,
+    });
+
     setStudents(updatedStudents);
 
     const changed = [updatedStudents[index]].filter(
-      (s) => s.showRegisterCheckbox && s.registered !== originalRegistered[s.id]
+      //(s) => s.showRegisterCheckbox && s.registered !== originalRegistered[s.id]
+      (s) => s.registered !== originalRegistered[s.id]
     );
+
+    console.log('🟡 Students thay đổi để lưu:', changed);
 
     if (changed.length > 0) {
       try {
         await saveRegistrationChanges(changed, namHoc, selectedClass, setClassData, classData);
+        console.log('✅ Đã lưu thành công:', changed.map((s) => s.id));
+
         const updatedMap = { ...originalRegistered };
         changed.forEach((s) => {
           updatedMap[s.id] = s.registered;
@@ -289,10 +302,13 @@ export default function Lop2() {
         setOriginalRegistered(updatedMap);
         setLastSaved(new Date());
       } catch (err) {
-        console.error('Lỗi khi lưu đăng ký bán trú:', err.message);
+        console.error('❌ Lỗi khi lưu đăng ký bán trú:', err.message);
       }
+    } else {
+      console.log('⚠️ Không có thay đổi nào cần lưu');
     }
   };
+
 
    const handleClassChange = async (event) => {
     clearTimeout(saveTimeout.current);
@@ -333,6 +349,12 @@ export default function Lop2() {
     const msg = `Học sinh: ${student.hoVaTen}\nVắng: ${student.vangCoPhep || '[chưa chọn]'}\nLý do: ${student.lyDo || '[chưa nhập]'}`;
     navigator.clipboard.writeText(msg).then(() => alert('Đã sao chép tin nhắn. Dán vào Zalo để gửi.'));
   };
+
+  useEffect(() => {
+    const eligibleStudents = students.filter(s => s.dangKyBanTru === true);
+    const allChecked = eligibleStudents.length > 0 && eligibleStudents.every(s => s.registered === true);
+    setCheckAllBanTru(allChecked);
+  }, [students]);
 
   return (
   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8, backgroundColor: '#e3f2fd' }}>
@@ -488,22 +510,34 @@ export default function Lop2() {
 
                           // 🔄 Cập nhật danh sách học sinh
                           const updated = students.map((s) =>
-                            s.showRegisterCheckbox ? { ...s, registered: newVal } : s
+                            (viewMode === 'bantru' ? s.dangKyBanTru : s.showRegisterCheckbox)
+                              ? { ...s, registered: newVal }
+                              : s
                           );
-                          setStudents(updated);
 
-                          // 🔍 Lọc những học sinh có registered thay đổi so với original
+                          setStudents(updated); // UI sẽ cập nhật sau
+
+                          // ✅ Lọc những học sinh có sự thay đổi so với original
                           const changed = updated.filter(
-                            (s) => s.showRegisterCheckbox && s.registered !== originalRegistered[s.id]
+                            (s) =>
+                              (viewMode === 'bantru' ? s.dangKyBanTru : s.showRegisterCheckbox) &&
+                              (originalRegistered[s.id] === undefined || s.registered !== originalRegistered[s.id])
                           );
+
+                          console.log("➡️ Những học sinh thay đổi:", changed.map((s) => s.hoVaTen));
 
                           // 💾 Gọi lưu nếu có thay đổi
                           if (changed.length > 0) {
                             try {
-                              //await saveRegistrationChanges(changed, namHoc);
-                              await saveRegistrationChanges(changed, namHoc, selectedClass, setClassData, classData);
+                              await saveRegistrationChanges(
+                                changed,
+                                namHoc,
+                                selectedClass,
+                                setClassData,
+                                classData
+                              );
 
-                              // Cập nhật lại originalRegistered
+                              // Cập nhật lại bản gốc
                               const updatedMap = { ...originalRegistered };
                               changed.forEach((s) => {
                                 updatedMap[s.id] = s.registered;
@@ -511,7 +545,7 @@ export default function Lop2() {
                               setOriginalRegistered(updatedMap);
                               setLastSaved(new Date());
                             } catch (err) {
-                              console.error('Lỗi khi lưu đăng ký bán trú:', err.message);
+                              console.error("❌ Lỗi khi lưu đăng ký bán trú:", err.message);
                             }
                           }
                         }}
@@ -519,10 +553,12 @@ export default function Lop2() {
                         color="default"
                         sx={{
                           p: 0,
-                          color: 'white',
-                          '& .MuiSvgIcon-root': { fontSize: 18 },
+                          color: "white",
+                          "& .MuiSvgIcon-root": { fontSize: 18 },
                         }}
                       />
+
+
                     </Stack>
                   </TableCell>
                 )}
@@ -586,9 +622,8 @@ export default function Lop2() {
 
                       {viewMode === 'bantru' && (
                         <TableCell align="center" sx={{ px: { xs: 1, sm: 2 }, width: { xs: 50, sm: 'auto' } }}>
-                          <Checkbox                            
-                            checked={s.registered}
-                            //onChange={() => toggleRegister(index)}
+                          <Checkbox                          
+                            checked={s.registered}                            
                             onChange={() => {
                               const trueIndex = students.findIndex(x => x.id === s.id);
                               toggleRegister(trueIndex);
