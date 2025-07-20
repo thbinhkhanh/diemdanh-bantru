@@ -6,7 +6,9 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { motion } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { setDoc, doc, getDoc } from 'firebase/firestore';
+//import { setDoc, doc, getDoc } from 'firebase/firestore';
+import { writeBatch, doc, getDoc, setDoc } from "firebase/firestore";
+
 import { db } from './firebase';
 import { customAlphabet } from 'nanoid';
 
@@ -169,18 +171,27 @@ export default function TaiDanhSach({ onBack }) {
     let errorCount = 0;
     setTotalCount(studentsNew.length);
 
-    for (let i = 0; i < studentsNew.length; i++) {
-      const student = studentsNew[i];
+    const BATCH_LIMIT = 500;
+
+    for (let i = 0; i < studentsNew.length; i += BATCH_LIMIT) {
+      const chunk = studentsNew.slice(i, i + BATCH_LIMIT);
+      const batch = writeBatch(db);
+
+      chunk.forEach(student => {
+        const docRef = doc(db, studentCollection, student.maDinhDanh);
+        batch.set(docRef, student);
+      });
+
       try {
-        await setDoc(doc(db, studentCollection, student.maDinhDanh), student);
-        successCount++;
+        await batch.commit();
+        successCount += chunk.length;
       } catch (err) {
-        console.error(`❌ Lỗi khi ghi học sinh [${student.hoVaTen}]:`, err.message);
-        errorCount++;
+        console.error(`❌ Lỗi khi ghi batch từ ${i} đến ${i + BATCH_LIMIT}:`, err.message);
+        errorCount += chunk.length;
       }
 
-      setCurrentIndex(i + 1);
-      setProgress(Math.round(((i + 1) / studentsNew.length) * 100));
+      setCurrentIndex(Math.min(i + BATCH_LIMIT, studentsNew.length));
+      setProgress(Math.round(((i + BATCH_LIMIT) / studentsNew.length) * 100));
     }
 
     try {

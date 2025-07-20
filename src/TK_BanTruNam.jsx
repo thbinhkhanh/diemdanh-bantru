@@ -28,7 +28,8 @@ export default function ThongKeNam({ onBack }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { getClassList, setClassListForKhoi } = useClassList();
-  const { getClassData, setClassData } = useClassData();
+  //const { getClassData, setClassData } = useClassData();
+  const { getClassData } = useClassData();
 
   // Lấy năm học động
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function ThongKeNam({ onBack }) {
 
     const cachedList = getClassList("TRUONG");
     if (cachedList.length > 0) {
+      //console.log("📦 LẤY TỪ CONTEXT (TRUONG):", cachedList);
       setClassList(cachedList);
       setSelectedClass(cachedList[0]);
       return;
@@ -57,8 +59,11 @@ export default function ThongKeNam({ onBack }) {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const list = docSnap.data().list || [];
+          //console.log("🗂️ LẤY TỪ FIRESTORE:", list);
           setClassList(list);
           setSelectedClass(list[0] || "");
+
+          // 🔁 Cập nhật vào context để dùng cho các component khác
           setClassListForKhoi("TRUONG", list);
         } else {
           console.warn("⚠️ Không tìm thấy tài liệu CLASSLIST/TRUONG");
@@ -69,8 +74,7 @@ export default function ThongKeNam({ onBack }) {
     };
 
     fetchClassList();
-  }, [namHocValue, getClassList, setClassListForKhoi]);
-
+  }, [namHocValue]);
 
   // Lấy dữ liệu thống kê 
   useEffect(() => {
@@ -92,7 +96,7 @@ export default function ThongKeNam({ onBack }) {
 
           const selectedDateStr = selectedDate.toISOString().split("T")[0];
           const enriched = enrichStudents(danhSachData, selectedDateStr, selectedClass, true);
-          setClassData(key, enriched);
+          //setClassData(key, enriched);
           rawData = enriched;
           //console.log(`✨ Enriched ${enriched.length} học sinh từ DANHSACH_${namHocValue}`);
         } else {
@@ -160,9 +164,7 @@ export default function ThongKeNam({ onBack }) {
     };
 
     fetchStudents();
-  }, [selectedClass, selectedDate, namHocValue, getClassData, setClassData]);
-
-
+  }, [selectedClass, selectedDate, namHocValue, getClassData]);
 
   const headCellStyle = {
     fontWeight: "bold",

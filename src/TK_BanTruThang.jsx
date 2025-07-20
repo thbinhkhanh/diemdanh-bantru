@@ -70,7 +70,7 @@ export default function ThongKeThang({ onBack }) {
     };
 
     fetchClassList();
-  }, [getClassList, setClassListForKhoi]); // ✅ Đã thêm đầy đủ dependencies
+  }, [getClassList, setClassListForKhoi]);
 
 
   // Hàm xử lý dữ liệu học sinh + thống kê bán trú, rồi set dataList
@@ -154,7 +154,7 @@ export default function ThongKeThang({ onBack }) {
           const enriched = enrichStudents(danhSachData, selectedDateStr, selectedClass, true);
 
           // ✅ lưu enriched vào context
-          setClassData(selectedClass, enriched);
+          //setClassData(selectedClass, enriched);
 
           // ✅ sử dụng enriched
           rawData = enriched;
@@ -256,7 +256,7 @@ export default function ThongKeThang({ onBack }) {
                   InputProps: {
                     inputComponent: (props) => {
                       const month = selectedDate.getMonth() + 1;
-                      //const year = selectedDate.getFullYear();
+                      const year = selectedDate.getFullYear();
                       return <input {...props} value={`Tháng ${month}`} readOnly />;
                     },
                   },
