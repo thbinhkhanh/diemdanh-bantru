@@ -5,7 +5,7 @@ import {
   Select, FormControl, InputLabel, Checkbox, Card, LinearProgress,
   Alert
 } from '@mui/material';
-import { getDocs, getDoc, collection, doc, updateDoc } from 'firebase/firestore';
+import { getDocs, getDoc, collection, doc, updateDoc, setDoc, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { MySort } from './utils/MySort';
 import { useClassList } from './context/ClassListContext';
@@ -29,6 +29,16 @@ export default function LapDanhSach({ onBack }) {
     severity: 'success',
   });
   const [namHocValue, setNamHocValue] = useState(null);
+
+  const getNgayVN = () => {
+    const now = new Date(); // không cộng thêm vì đã dùng GMT+7
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mi = String(now.getMinutes()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+  };
 
   // Lần đầu tải danh sách lớp và năm học
   useEffect(() => {
@@ -200,6 +210,19 @@ const handleClassChange = (event) => {
           dangKyBanTru: student.registered,
           diemDanhBanTru: student.registered,
         });
+
+          // Ghi nhật ký bán trú KHÔNG ghi đè và có thời gian chi tiết
+          const timestamp = Date.now();
+          const logId = `${student.lop}-${student.id.slice(-7)}-${timestamp}`;
+          const logRef = doc(db, `NHATKYBANTRU_${namHocValue}`, logId);
+
+          await setDoc(logRef, {
+            maDinhDanh: `${student.lop}-${student.id.slice(-7)}`,
+            hoVaTen: student.hoVaTen || "",
+            lop: student.lop || selectedClass,
+            trangThai: student.registered ? "Đăng ký" : "Hủy đăng ký",
+            ngayDieuChinh: getNgayVN(), // 👇 Định nghĩa lại bên dưới
+          });
       }
 
       // Cập nhật lại local state và context

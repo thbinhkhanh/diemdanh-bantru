@@ -3,11 +3,11 @@ import {
   doc,
   getDoc,
   getDocs,
-  setDoc,
   Timestamp,
+  writeBatch
 } from "firebase/firestore";
 import { db } from "../firebase";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx"; // ← Có thể bỏ nếu không dùng Excel trong hàm này
 
 /** 🔁 Phục hồi dữ liệu từ file JSON */
 export const restoreFromJSONFile = async (
@@ -15,7 +15,8 @@ export const restoreFromJSONFile = async (
   setRestoreProgress,
   setAlertMessage,
   setAlertSeverity,
-  selectedDataTypes // 👈 thêm vào
+  selectedDataTypes,
+  restoreMode
 ) => {
   try {
     if (!file) return alert("⚠️ Chưa chọn file để phục hồi!");
@@ -24,7 +25,6 @@ export const restoreFromJSONFile = async (
     const jsonData = JSON.parse(text);
     const collections = Object.entries(jsonData);
 
-    // 🔍 Xác định loại dữ liệu cần phục hồi theo checkbox
     const allowedPrefixes = [];
     if (selectedDataTypes.danhsach) allowedPrefixes.push("DANHSACH");
     if (selectedDataTypes.bantru) allowedPrefixes.push("BANTRU");
@@ -43,15 +43,25 @@ export const restoreFromJSONFile = async (
     });
 
     let processed = 0;
+    let addedCount = 0;
+    let skippedCount = 0;
 
     for (const [collectionName, documents] of collections) {
-      // ❌ Bỏ qua nếu không nằm trong danh sách được chọn
       if (!allowedPrefixes.some(prefix => collectionName.startsWith(prefix))) {
         console.info(`🚫 Bỏ qua collection không được chọn: ${collectionName}`);
         continue;
       }
 
       console.group(`📂 Phục hồi collection: ${collectionName}`);
+      const onlyAddNew = restoreMode === "check";
+
+      // ✅ Dùng getDocs để lấy danh sách ID đã tồn tại
+      const existingIds = onlyAddNew
+        ? new Set((await getDocs(collection(db, collectionName))).docs.map(doc => doc.id))
+        : new Set();
+
+      const batchOps = [];
+
       for (const [docId, docData] of Object.entries(documents)) {
         const restoredData = {};
         for (const [key, value] of Object.entries(docData)) {
@@ -65,33 +75,48 @@ export const restoreFromJSONFile = async (
           }
         }
 
-        const docRef = doc(db, collectionName, docId);
-        const existingSnap = await getDoc(docRef);
-
-        const shouldOverwrite = collectionName.startsWith("DANHSACH");
-        const shouldUpdate =
-          collectionName.startsWith("DIEMDANH") ||
-          collectionName.startsWith("BANTRU");
-
-        if (shouldUpdate && existingSnap.exists()) {
-          const existingData = existingSnap.data();
-          const isSame = JSON.stringify(existingData) === JSON.stringify(restoredData);
-          if (isSame) {
-            console.info(`⚠️ Bỏ qua vì giống: ${collectionName}/${docId}`);
-            continue;
-          }
+        if (onlyAddNew && existingIds.has(docId)) {
+          skippedCount++;
+          processed++;
+          setRestoreProgress(Math.round((processed / totalDocs) * 100));
+          continue;
         }
 
-        await setDoc(docRef, restoredData, { merge: true });
+        batchOps.push({ docRef: doc(db, collectionName, docId), data: restoredData });
+
+        addedCount++;
         processed++;
         setRestoreProgress(Math.round((processed / totalDocs) * 100));
+        console.log(`➕ Thêm mới: ${collectionName}/${docId}`, restoredData.maDinhDanh || restoredData.name || docId);
       }
+
+      for (let i = 0; i < batchOps.length; i += 500) {
+        const chunk = batchOps.slice(i, i + 500);
+        const batch = writeBatch(db);
+        chunk.forEach(({ docRef, data }) => {
+          batch.set(docRef, data, { merge: true });
+        });
+        await batch.commit();
+      }
+
       console.groupEnd();
     }
 
     setRestoreProgress(100);
-    setAlertMessage(`✅ Phục hồi ${processed} documents thành công!`);
-    setAlertSeverity("success");
+
+    const message =
+      addedCount > 0
+        ? `✅ Đã phục hồi ${addedCount} dòng dữ liệu.`
+        : `📎 Không có dữ liệu mới để phục hồi.`;
+
+    const skipNote =
+      skippedCount > 0
+        ? `🔁 Bỏ qua ${skippedCount} dòng đã tồn tại.`
+        : "";
+
+    setAlertMessage(`${message} ${skipNote}`.trim());
+    setAlertSeverity(addedCount > 0 ? "success" : "info");
+
   } catch (error) {
     console.error("❌ Lỗi khi phục hồi JSON:", error);
     setAlertMessage(`❌ Lỗi khi phục hồi: ${error.message}`);
@@ -99,33 +124,43 @@ export const restoreFromJSONFile = async (
   }
 };
 
-
-
-/** 🔁 Phục hồi dữ liệu từ Excel (.xlsx) */
 export const restoreFromExcelFile = async (
   file,
   setRestoreProgress,
   setAlertMessage,
   setAlertSeverity,
-  selectedDataTypes // 👈 Thêm vào để kiểm tra lựa chọn
+  selectedDataTypes,
+  restoreMode // "all" hoặc "check"
 ) => {
   try {
     if (!file) return alert("⚠️ Chưa chọn file để phục hồi!");
 
-    // ⚠️ Kiểm tra nếu không chọn Bán trú
-    if (!selectedDataTypes?.bantru) {
-      alert("⚠️ Bạn chưa chọn phục hồi dữ liệu Bán trú.");
+    const prefixMap = {
+      bantru: "BANTRU",
+      danhsach: "DANHSACH",
+      diemdan: "DIEMDANH",
+      // Bạn có thể thêm: khaosat, tongket, gopy...
+    };
+
+    const selectedPrefixes = Object.entries(prefixMap)
+      .filter(([key]) => selectedDataTypes[key])
+      .map(([, prefix]) => prefix);
+
+    if (selectedPrefixes.length === 0) {
+      alert("⚠️ Bạn chưa chọn loại dữ liệu nào để phục hồi!");
       return;
     }
 
     setRestoreProgress(0);
 
     const yearDocSnap = await getDoc(doc(db, "YEAR", "NAMHOC"));
-    if (!yearDocSnap.exists())
+    if (!yearDocSnap.exists()) {
       throw new Error("❌ Không tìm thấy năm học trong Firestore (YEAR/NAMHOC)");
+    }
     const currentNamHoc = yearDocSnap.data().value;
-    if (!currentNamHoc)
+    if (!currentNamHoc) {
       throw new Error("❌ Trường value trong YEAR/NAMHOC trống.");
+    }
 
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: "array" });
@@ -140,51 +175,91 @@ export const restoreFromExcelFile = async (
 
     const totalRows = rows.length;
     let processed = 0;
-    const collectionWithYear = `BANTRU_${currentNamHoc}`;
+    let addedCount = 0;
+    let skippedCount = 0;
 
-    for (const row of rows) {
-      const { id, maDinhDanh, ...rawDoc } = row;
-      if (!id || typeof maDinhDanh === "undefined") {
-        console.warn("❗ Bỏ qua dòng thiếu ID hoặc maDinhDanh:", row);
-        continue;
-      }
+    for (const prefix of selectedPrefixes) {
+      const collectionWithYear = `${prefix}_${currentNamHoc}`;
+      const onlyAddNew = restoreMode === "check";
 
-      const docData = { maDinhDanh };
-      const dataField = {};
+      const existingIds = onlyAddNew
+        ? new Set((await getDocs(collection(db, collectionWithYear))).docs.map(doc => doc.id))
+        : new Set();
 
-      for (const [key, value] of Object.entries(rawDoc)) {
-        if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(key)) {
-          const normalizedDate = key.replace(/\//g, "-");
-          dataField[normalizedDate] = value;
-        } else if (
-          typeof value === "string" &&
-          /^\d{4}-\d{2}-\d{2}T/.test(value)
-        ) {
-          const date = new Date(value);
-          docData[key] = isNaN(date.getTime())
-            ? value
-            : Timestamp.fromDate(date);
-        } else {
-          docData[key] = value;
+      const docsToWrite = [];
+
+      for (const row of rows) {
+        const { id, maDinhDanh, ...rawDoc } = row;
+        if (!id || typeof maDinhDanh === "undefined") {
+          console.warn("❗ Bỏ qua dòng thiếu ID hoặc maDinhDanh:", row);
+          continue;
         }
+
+        const docData = { maDinhDanh };
+        const dataField = {};
+
+        for (const [key, value] of Object.entries(rawDoc)) {
+          if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(key)) {
+            const normalizedDate = key.replace(/\//g, "-");
+            dataField[normalizedDate] = value;
+          } else if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+            const date = new Date(value);
+            docData[key] = isNaN(date.getTime())
+              ? value
+              : Timestamp.fromDate(date);
+          } else {
+            docData[key] = value;
+          }
+        }
+
+        if (Object.keys(dataField).length > 0) {
+          docData.data = dataField;
+        }
+
+        const docId = id.toString();
+
+        if (onlyAddNew && existingIds.has(docId)) {
+          skippedCount++;
+          processed++;
+          setRestoreProgress(Math.round((processed / totalRows) * 100));
+          continue;
+        }
+
+        docsToWrite.push({ docRef: doc(db, collectionWithYear, docId), data: docData });
+        addedCount++;
+        processed++;
+        setRestoreProgress(Math.round((processed / totalRows) * 100));
+        console.log(`➕ [${prefix}] ${collectionWithYear}/${docId}`, docData);
       }
 
-      if (Object.keys(dataField).length > 0) {
-        docData.data = dataField;
+      for (let i = 0; i < docsToWrite.length; i += 500) {
+        const chunk = docsToWrite.slice(i, i + 500);
+        const batch = writeBatch(db);
+        chunk.forEach(({ docRef, data }) => {
+          batch.set(docRef, data, { merge: true });
+        });
+        await batch.commit();
       }
 
-      await setDoc(doc(db, collectionWithYear, id.toString()), docData, {
-        merge: true,
-      });
-      processed++;
-      setRestoreProgress(Math.round((processed / totalRows) * 100));
+      console.groupEnd();
     }
 
     setRestoreProgress(100);
+    const message =
+      addedCount > 0
+        ? `✅ Đã phục hồi ${addedCount} dòng dữ liệu năm học ${currentNamHoc}.`
+        : `📎 Không có dữ liệu mới để phục hồi.`;
+
+    const skipNote =
+      skippedCount > 0
+        ? `🔁 Bỏ qua ${skippedCount} dòng đã tồn tại.`
+        : "";
+
     setTimeout(() => {
-      setAlertMessage(`✅ Đã phục hồi dữ liệu năm học ${currentNamHoc} thành công!`);
-      setAlertSeverity("success");
+      setAlertMessage(`${message} ${skipNote}`.trim());
+      setAlertSeverity(addedCount > 0 ? "success" : "info");
     }, 500);
+
   } catch (error) {
     console.error("❌ Lỗi khi phục hồi Excel:", error);
     setAlertMessage(`❌ Lỗi khi phục hồi: ${error.message}`);

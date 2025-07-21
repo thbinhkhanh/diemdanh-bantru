@@ -35,6 +35,8 @@ export default function CapNhatDS({ onBack }) {
   const dangKyOptions = ["Đăng ký", "Hủy đăng ký"];
   const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
 
+  const isDangKyDisabled = nhapTuDanhSach === "thuCong" || (nhapTuDanhSach === "danhSach" && !selectedStudentId);
+
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
@@ -224,6 +226,17 @@ export default function CapNhatDS({ onBack }) {
       const dangKyBanTru = dangKy === "Hủy đăng ký" ? false : true;
       const diemDanhBanTru = dangKyBanTru;
 
+      //const getNgayVN = () => new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const getNgayVN = () => {
+        const now = new Date(); // ❗ Không cộng 7 tiếng nữa
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+        const hh = String(now.getHours()).padStart(2, "0");
+        const mi = String(now.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+      };
+
       if (nhapTuDanhSach === "danhSach") {
         const currentStatus = selectedStudentData.dangKyBanTru;
 
@@ -238,7 +251,7 @@ export default function CapNhatDS({ onBack }) {
 
         await updateDoc(doc(db, `DANHSACH_${namHocValue}`, selectedStudentData.id), {
           dangKyBanTru,
-          diemDanhBanTru
+          diemDanhBanTru,
         });
 
         const updatedStudents = allStudents.map((s) =>
@@ -250,6 +263,20 @@ export default function CapNhatDS({ onBack }) {
         setFilteredStudents(MySort(updatedStudents));
 
         showSnackbar("✅ Cập nhật thành công!");
+
+        // 📌 Ghi nhật ký bán trú KHÔNG ghi đè
+        const timestamp = Date.now();
+        const logId = `${selectedStudentData.lop}-${selectedStudentData.id.slice(-7)}-${timestamp}`;
+        const logRef = doc(db, `NHATKYBANTRU_${namHocValue}`, logId);
+
+        await setDoc(logRef, {
+          maDinhDanh: `${selectedStudentData.lop}-${selectedStudentData.id.slice(-7)}`,
+          hoVaTen: selectedStudentData.hoVaTen || "",
+          lop: selectedStudentData.lop || selectedClass,
+          trangThai: dangKy,
+          ngayDieuChinh: getNgayVN(), // định dạng YYYY-MM-DD theo giờ Việt Nam
+        });
+
       } else {
         const generatedMaDinhDanh = `${selectedClass}-${nanoid()}`;
         const docRef = doc(db, `DANHSACH_${namHocValue}`, generatedMaDinhDanh);
@@ -280,10 +307,24 @@ export default function CapNhatDS({ onBack }) {
           setFilteredStudents(MySort(updated));
 
           showSnackbar("✅ Thêm học sinh mới thành công!");
+
+          // 📌 Ghi nhật ký bán trú không ghi đè
+          const timestamp = Date.now();
+          const logId = `${selectedClass}-${generatedMaDinhDanh.slice(-7)}-${timestamp}`;
+          const logRef = doc(db, `NHATKYBANTRU_${namHocValue}`, logId);
+
+          await setDoc(logRef, {
+            maDinhDanh: `${selectedClass}-${generatedMaDinhDanh.slice(-7)}`,
+            hoVaTen: customHoTen.trim(),
+            lop: selectedClass,
+            trangThai: dangKy,
+            ngayDieuChinh: getNgayVN(),
+          });
+
         } else {
           await updateDoc(docRef, {
             dangKyBanTru,
-            diemDanhBanTru
+            diemDanhBanTru,
           });
 
           const updatedStudents = allStudents.map((s) =>
@@ -295,6 +336,19 @@ export default function CapNhatDS({ onBack }) {
           setFilteredStudents(MySort(updatedStudents));
 
           showSnackbar("✅ Cập nhật học sinh thành công!");
+
+          // 📌 Ghi nhật ký bán trú KHÔNG ghi đè
+          const timestamp = Date.now();
+          const logId = `${selectedClass}-${generatedMaDinhDanh.slice(-7)}-${timestamp}`;
+          const logRef = doc(db, `NHATKYBANTRU_${namHocValue}`, logId);
+
+          await setDoc(logRef, {
+            maDinhDanh: `${selectedClass}-${generatedMaDinhDanh.slice(-7)}`,
+            hoVaTen: customHoTen.trim(),
+            lop: selectedClass,
+            trangThai: dangKy,
+            ngayDieuChinh: getNgayVN(),
+          });
         }
       }
     } catch (error) {
@@ -304,7 +358,6 @@ export default function CapNhatDS({ onBack }) {
       setSaving(false);
     }
   };
-
 
   return (
     <Box sx={{ minHeight: "100vh", backgroundColor: "transparent", pt: 1, px: 1, display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
@@ -388,13 +441,12 @@ export default function CapNhatDS({ onBack }) {
                 <TextField label="Họ và tên" size="small" fullWidth value={customHoTen} onChange={(e) => { setCustomHoTen(e.target.value);  }} sx={{ mb: 2 }} />
               )}
 
-              <FormControl fullWidth size="small" sx={{ mb: 3 }}>
+              <FormControl fullWidth size="small" sx={{ mb: 3 }} disabled={isDangKyDisabled}>
                 <InputLabel>Trạng thái đăng ký</InputLabel>
                 <Select
                   value={dangKy}
                   label="Trạng thái đăng ký"
                   onChange={(e) => { setDangKy(e.target.value); }}
-                  disabled={true} // 🔒 Luôn vô hiệu hóa
                 >
                   <MenuItem value=""><em>Chọn trạng thái</em></MenuItem>
                   {dangKyOptions.map((opt) => (
@@ -402,7 +454,6 @@ export default function CapNhatDS({ onBack }) {
                   ))}
                 </Select>
               </FormControl>
-
 
               <Stack spacing={2} alignItems="center">
                 <Button variant="contained" color="primary" onClick={handleUpdate} disabled={saving} sx={{ width: 160, fontWeight: 600, py: 1 }}>

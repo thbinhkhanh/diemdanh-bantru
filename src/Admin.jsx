@@ -4,7 +4,8 @@ import {
   Card, Divider, Select, MenuItem, FormControl, InputLabel,
   RadioGroup, Radio, FormControlLabel, LinearProgress, Alert, Tabs, Tab, Checkbox, FormGroup
 } from "@mui/material";
-import { doc, setDoc, getDoc, getDocs, deleteDoc, collection } from "firebase/firestore";
+import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, writeBatch } from "firebase/firestore";
+
 import { db } from "./firebase";
 import {
   downloadBackupAsJSON,
@@ -265,18 +266,19 @@ export default function Admin({ onCancel }) {
       let completed = 0;
       let count = 0;
 
+      const batch = writeBatch(db);
+
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
         if (data.diemDanhBanTru === false) {
-          await setDoc(doc(db, colName, docSnap.id), {
-            ...data,
-            diemDanhBanTru: true
-          }, { merge: true });
+          batch.set(doc(db, colName, docSnap.id), { diemDanhBanTru: true }, { merge: true });
           count++;
         }
         completed++;
         setResetProgress(Math.round((completed / total) * 100));
       }
+
+      await batch.commit(); // ✅ Ghi toàn bộ trong một lần duy nhất
 
       // 🔁 Cập nhật lại dữ liệu context classData nếu có
       const currentClassData = getClassData() || {};
@@ -291,7 +293,7 @@ export default function Admin({ onCancel }) {
 
       setClassData(updatedClassData);
 
-      setResetMessage(`✅ Đã reset xong điểm danh bán trú.`);
+      setResetMessage(`✅ Đã reset xong bán trú (${count} học sinh).`);
       setResetSeverity("success");
     } catch (err) {
       console.error("❌ Lỗi khi reset điểm danh bán trú:", err);
@@ -301,7 +303,6 @@ export default function Admin({ onCancel }) {
       setTimeout(() => setResetProgress(0), 3000);
     }
   };
-
 
   const handleResetDiemDanh = async () => {
     const confirmed = window.confirm("⚠️ Bạn có chắc chắn muốn reset điểm danh?");
@@ -328,6 +329,8 @@ export default function Admin({ onCancel }) {
       let completed = 0;
       let count = 0;
 
+      const batch = writeBatch(db);
+
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
         const updates = {};
@@ -340,15 +343,12 @@ export default function Admin({ onCancel }) {
           updates.lyDo = "";
         }
 
-        if (
-          typeof data.phep === "boolean" ||
-          data.phep === null
-        ) {
+        if (typeof data.phep === "boolean" || data.phep === null) {
           updates.phep = deleteField();
         }
 
         if (Object.keys(updates).length > 0) {
-          await setDoc(doc(db, colName, docSnap.id), updates, { merge: true });
+          batch.set(doc(db, colName, docSnap.id), updates, { merge: true });
           count++;
         }
 
@@ -356,7 +356,9 @@ export default function Admin({ onCancel }) {
         setResetProgress(Math.round((completed / total) * 100));
       }
 
-      setResetMessage(`✅ Đã reset điểm danh cho ${count} học sinh.`);
+      await batch.commit(); // ✅ Ghi tất cả trong một lần duy nhất
+
+      setResetMessage(`✅ Đã reset xong điểm danh (${count} học sinh).`);
       setResetSeverity("success");
     } catch (err) {
       console.error("❌ Lỗi khi reset điểm danh:", err);
@@ -367,6 +369,49 @@ export default function Admin({ onCancel }) {
     }
   };
 
+  const handleDeleteKyBanTru = async () => {
+    const confirmed = window.confirm("⚠️ Bạn có chắc chắn muốn xoá toàn bộ nhật ký bán trú?");
+    if (!confirmed) return;
+
+    try {
+      setResetProgress(0);
+      setResetMessage("");
+      setResetSeverity("info");
+      setResetType("dangky");
+
+      const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
+      const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
+      if (!namHocValue) {
+        setResetMessage("❌ Không tìm thấy năm học!");
+        setResetSeverity("error");
+        return;
+      }
+
+      const nhatKyCol = `NHATKYBANTRU_${namHocValue}`;
+      const nhatKySnapshot = await getDocs(collection(db, nhatKyCol));
+
+      const total = nhatKySnapshot.docs.length;
+      let completed = 0;
+
+      const batch = writeBatch(db);
+      nhatKySnapshot.docs.forEach((docSnap) => {
+        batch.delete(doc(db, nhatKyCol, docSnap.id));
+        completed++;
+        setResetProgress(Math.round((completed / total) * 100));
+      });
+
+      await batch.commit();
+
+      setResetMessage(`✅ Đã xoá toàn bộ nhật ký bán trú (${completed} bản ghi).`);
+      setResetSeverity("success");
+    } catch (err) {
+      console.error("❌ Lỗi khi xoá nhật ký bán trú:", err);
+      setResetMessage("❌ Có lỗi xảy ra khi xoá dữ liệu.");
+      setResetSeverity("error");
+    } finally {
+      setTimeout(() => setResetProgress(0), 3000);
+    }
+  };
 
   const handlePerformDelete = async () => {
     const { danhsach, bantru, diemdan } = deleteCollections;
@@ -756,7 +801,8 @@ export default function Admin({ onCancel }) {
                         setRestoreProgress,
                         setAlertMessage,
                         setAlertSeverity,
-                        selectedDataTypes
+                        selectedDataTypes,
+                        restoreMode
                       );
                     } else {
                       restoreFromExcelFile(
@@ -764,7 +810,8 @@ export default function Admin({ onCancel }) {
                         setRestoreProgress,
                         setAlertMessage,
                         setAlertSeverity,
-                        selectedDataTypes
+                        selectedDataTypes,
+                        restoreMode
                       );
                     }
                   }}
@@ -844,6 +891,10 @@ export default function Admin({ onCancel }) {
 
                 </>
               )}
+
+              <Button variant="contained" color="primary" onClick={handleDeleteKyBanTru}>
+                🗑️ Xóa lịch sử đăng ký
+              </Button>
 
               <Button variant="contained" color="warning" onClick={handleResetDangKyBanTru}>
                 ♻️ Reset bán trú

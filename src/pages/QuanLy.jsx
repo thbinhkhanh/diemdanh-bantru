@@ -34,16 +34,21 @@ import ChotSoLieu from '../ChotSoLieu';
 import SoLieuNgay from '../SoLieuNgay';
 import DieuChinhSuatAn from '../DieuChinhSuatAn';
 import XoaDLNgay from '../XoaDLNgay';
+
 import TK_BanTruNgay from '../TK_BanTruNgay';
 import TK_BanTruThang from '../TK_BanTruThang';
 import TK_BanTruNam from '../TK_BanTruNam';
+import NhatKyBanTru from '../NhatKyBanTru';
+
 import CapNhatDS from '../CapNhatDS';
 import LapDanhSach from '../LapDanhSach';
 import TaiDanhSach from '../TaiDanhSach';
+
 import TK_DiemDanhNgay from '../TK_DiemDanhNgay';
 import TK_DiemDanhThang from '../TK_DiemDanhThang';
 import TK_DiemDanhNam from '../TK_DiemDanhNam';
 import NhatKyDiemDanhQL from '../NhatKyDiemDanhQL';
+
 import Banner from './Banner';
 
 export default function QuanLy() {
@@ -95,16 +100,20 @@ export default function QuanLy() {
       case 'SONGAY': return <SoLieuNgay onBack={() => setSelectedFunction('')} />;
       case 'SUATAN': return <DieuChinhSuatAn onBack={() => setSelectedFunction('')} />;
       case 'XOANGAY': return <XoaDLNgay onBack={() => setSelectedFunction('')} />;
+
       case 'TKNGAY': return <TK_BanTruNgay onBack={() => setSelectedFunction('')} />;
       case 'TKTHANG': return <TK_BanTruThang onBack={() => setSelectedFunction('')} />;
       case 'TKNAM': return <TK_BanTruNam onBack={() => setSelectedFunction('')} />;
+      
       case 'DDNGAY': return <TK_DiemDanhNgay onBack={() => setSelectedFunction('')} />;
       case 'DDTHANG': return <TK_DiemDanhThang onBack={() => setSelectedFunction('')} />;
       case 'DDNAM': return <TK_DiemDanhNam onBack={() => setSelectedFunction('')} />;
-      case 'NHATKY': return <NhatKyDiemDanhQL onBack={() => setSelectedFunction('')} />;
+      case 'NHATKY_DD': return <NhatKyDiemDanhQL onBack={() => setSelectedFunction('')} />;
+
       case 'CAPNHAT': return <CapNhatDS onBack={() => setSelectedFunction('')} />;
       case 'LAPDS': return <LapDanhSach onBack={() => setSelectedFunction('')} />;
       case 'TAIDS': return <TaiDanhSach onBack={() => setSelectedFunction('')} />;
+      case 'NHATKY_BT': return <NhatKyBanTru onBack={() => setSelectedFunction('')} />;
       default: return null;
     }
   };
@@ -133,7 +142,7 @@ export default function QuanLy() {
         { code: 'DDNGAY', label: 'ĐIỂM DANH NGÀY', icon: <FactCheckIcon fontSize="large" />, color: '#7b1fa2' },
         { code: 'DDTHANG', label: 'ĐIỂM DANH THÁNG', icon: <QueryStatsIcon fontSize="large" />, color: '#0097a7' },
         { code: 'DDNAM', label: 'ĐIỂM DANH NĂM', icon: <BarChartIcon fontSize="large" />, color: '#1976d2' },
-        { code: 'NHATKY', label: 'NHẬT KÝ', icon: <MenuBookIcon fontSize="large" />, color: '#ff6f00' },
+        { code: 'NHATKY_DD', label: 'NHẬT KÝ', icon: <MenuBookIcon fontSize="large" />, color: '#ff6f00' },
       ],
     },
     {
@@ -142,6 +151,7 @@ export default function QuanLy() {
         { code: 'CAPNHAT', label: 'CẬP NHẬT DANH SÁCH', icon: <ManageAccountsIcon fontSize="large" />, color: '#303f9f' },
         { code: 'LAPDS', label: 'LẬP DANH SÁCH LỚP', icon: <FormatListBulletedIcon fontSize="large" />, color: '#c2185b' },
         { code: 'TAIDS', label: 'TẢI DANH SÁCH LÊN', icon: <FileUploadIcon fontSize="large" />, color: '#00796b' },
+        { code: 'NHATKY_BT', label: 'LỊCH SỬ ĐĂNG KÝ', icon: <MenuBookIcon fontSize="large" />, color: '#ff6f00' },
       ],
     },
   ];
