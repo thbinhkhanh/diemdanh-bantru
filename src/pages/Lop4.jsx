@@ -357,7 +357,7 @@ export default function Lop4() {
   }, [students]);
 
   return (
-  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8, backgroundColor: '#e3f2fd' }}>
+  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, backgroundColor: '#e3f2fd' }}>
     <Card
       sx={{
         mt:4,
