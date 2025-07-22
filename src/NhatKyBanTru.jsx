@@ -40,13 +40,19 @@ export default function NhatKyBanTru({ onBack }) {
       const nhatKyRef = collection(db, `NHATKYBANTRU_${namHocValue}`);
       const querySnapshot = await getDocs(nhatKyRef);
 
-      const records = querySnapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          ...data,
-        };
-      });
+      const records = querySnapshot.docs
+        .map((docSnap) => {
+            const data = docSnap.data();
+            return {
+            id: docSnap.id,
+            ...data,
+            };
+        })
+        .sort((a, b) => {
+            const dateA = new Date((a.ngayDieuChinh || "").replace(" ", "T"));
+            const dateB = new Date((b.ngayDieuChinh || "").replace(" ", "T"));
+            return dateB - dateA; // 🔁 Sắp xếp giảm dần theo ngày (gần nhất trước)
+        });
 
       setDataList(records);
     } catch (err) {
@@ -77,10 +83,15 @@ try {
 };
 
 return (
-    <Box sx={{ mt: 2, px: { xs: 2, sm: 4 } }}>
+    <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
         <Paper
             elevation={3}
-            sx={{ p: { xs: 2, sm: 4 }, borderRadius: 2 }}
+            sx={{
+            p: { xs: 2, sm: 4 },
+            borderRadius: 2,
+            width: "100%",
+            maxWidth: "900px", // 📏 Tăng giới hạn chiều rộng
+            }}
         >
             <Typography
             variant="h5"
@@ -151,12 +162,12 @@ return (
                     >
                     <TableHead>
                         <TableRow sx={{ backgroundColor: "#1976d2" }}>
-                        <TableCell sx={{ width: 30, color: "#fff", fontWeight: "bold" }}>STT</TableCell>
-                        <TableCell sx={{ width: 180, color: "#fff", fontWeight: "bold" }} align="left">
+                        <TableCell sx={{ width: 40, color: "#fff", fontWeight: "bold" }}>STT</TableCell>
+                        <TableCell sx={{ width: 200, color: "#fff", fontWeight: "bold" }} align="left">
                             HỌ VÀ TÊN
                         </TableCell>
                         <TableCell sx={{ width: 40, color: "#fff", fontWeight: "bold" }}>LỚP</TableCell>
-                        <TableCell sx={{ width: 80, color: "#fff", fontWeight: "bold" }}>TRẠNG THÁI</TableCell>
+                        <TableCell sx={{ width: 100, color: "#fff", fontWeight: "bold" }}>TRẠNG THÁI</TableCell>
                         <TableCell sx={{ width: 140, color: "#fff", fontWeight: "bold" }}>NGÀY ĐIỀU CHỈNH</TableCell>
                         </TableRow>
                     </TableHead>
