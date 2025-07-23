@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "diemdanh-bantru-e5e43"
-  }
+    "default": "diemdanh-bantru-450d5"
+  },
+  "targets": {},
+  "etags": {}
 }
