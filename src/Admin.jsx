@@ -643,13 +643,13 @@ export default function Admin({ onCancel }) {
               </Divider>
 
               {/* Nút SAO LƯU */}
-              {!showBackupOptions && !showRestoreOptions && (
+              {!showRestoreOptions && (
                 <Button
                   variant="contained"
                   color="success"
                   onClick={() => {
                     setShowBackupOptions(true);
-                    setShowRestoreOptions(false); // ẩn phục hồi nếu đang mở
+                    setShowRestoreOptions(false);
                     setSelectedDataTypes({ danhsach: false, bantru: false, diemdan: false });
                   }}
                 >
@@ -658,7 +658,7 @@ export default function Admin({ onCancel }) {
               )}
 
               {/* Nút PHỤC HỒI */}
-              {!showBackupOptions && !showRestoreOptions && (
+              {!showBackupOptions && (
                 <Button
                   variant="contained"
                   color="secondary"
