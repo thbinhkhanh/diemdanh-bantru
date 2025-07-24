@@ -653,7 +653,7 @@ export default function Admin({ onCancel }) {
                     setSelectedDataTypes({ danhsach: false, bantru: false, diemdan: false });
                   }}
                 >
-                  📥 Sao lưu
+                  📥 Sao lưu dữ liệu
                 </Button>
               )}
 
@@ -671,7 +671,7 @@ export default function Admin({ onCancel }) {
                     }
                   }}
                 >
-                  🔁 Phục hồi
+                  🔁 Phục hồi dữ liệu
                 </Button>
               )}
 
