@@ -72,7 +72,10 @@ export default function Admin({ onCancel }) {
   const [deleting, setDeleting] = useState(false); 
   const [deletingLabel, setDeletingLabel] = useState("");
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  //const [xoaHSBanTru, setXoaHSBanTru] = useState(false);
 
+  const [selectedBackupFile, setSelectedBackupFile] = useState(null);
+  const [restoreReady, setRestoreReady] = useState(false);
 
   const [selectedDataTypes, setSelectedDataTypes] = useState({
     danhsach: false,
@@ -84,6 +87,8 @@ export default function Admin({ onCancel }) {
     danhsach: false,
     bantru: false,
     diemdan: false,
+    nhatkybantru: false,
+    xoaHocSinhBanTru: false,
   });
 
   const handleDeleteCheckboxChange = (key) => {
@@ -369,55 +374,11 @@ export default function Admin({ onCancel }) {
     }
   };
 
-  const handleDeleteKyBanTru = async () => {
-    const confirmed = window.confirm("⚠️ Bạn có chắc chắn muốn xoá toàn bộ nhật ký bán trú?");
-    if (!confirmed) return;
-
-    try {
-      setResetProgress(0);
-      setResetMessage("");
-      setResetSeverity("info");
-      setResetType("dangky");
-
-      const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
-      const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
-      if (!namHocValue) {
-        setResetMessage("❌ Không tìm thấy năm học!");
-        setResetSeverity("error");
-        return;
-      }
-
-      const nhatKyCol = `NHATKYBANTRU_${namHocValue}`;
-      const nhatKySnapshot = await getDocs(collection(db, nhatKyCol));
-
-      const total = nhatKySnapshot.docs.length;
-      let completed = 0;
-
-      const batch = writeBatch(db);
-      nhatKySnapshot.docs.forEach((docSnap) => {
-        batch.delete(doc(db, nhatKyCol, docSnap.id));
-        completed++;
-        setResetProgress(Math.round((completed / total) * 100));
-      });
-
-      await batch.commit();
-
-      setResetMessage(`✅ Đã xoá toàn bộ nhật ký bán trú (${completed} bản ghi).`);
-      setResetSeverity("success");
-    } catch (err) {
-      console.error("❌ Lỗi khi xoá nhật ký bán trú:", err);
-      setResetMessage("❌ Có lỗi xảy ra khi xoá dữ liệu.");
-      setResetSeverity("error");
-    } finally {
-      setTimeout(() => setResetProgress(0), 3000);
-    }
-  };
-
   const handlePerformDelete = async () => {
-    const { danhsach, bantru, diemdan } = deleteCollections;
     const namHocValue = selectedYear;
+    const { danhsach, bantru, diemdan, nhatkybantru, xoaHocSinhBanTru } = deleteCollections;
 
-    if (!danhsach && !bantru && !diemdan) {
+    if (!danhsach && !bantru && !diemdan && !nhatkybantru && !xoaHocSinhBanTru) {
       alert("⚠️ Vui lòng chọn ít nhất một loại dữ liệu để xóa.");
       return;
     }
@@ -429,15 +390,17 @@ export default function Admin({ onCancel }) {
       setDeleting(true);
       setProgress(0);
 
+      let totalDeletedCount = 0;
+
       if (danhsach) {
         setDeletingLabel("Đang xóa danh sách...");
         const snap = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
         const total = snap.docs.length;
         for (let i = 0; i < total; i++) {
           await deleteDoc(snap.docs[i].ref);
+          totalDeletedCount++;
           setProgress(Math.round(((i + 1) / total) * 100));
         }
-        //console.log("✅ Đã xóa DANHSACH");
       }
 
       if (diemdan) {
@@ -446,9 +409,9 @@ export default function Admin({ onCancel }) {
         const total = snap.docs.length;
         for (let i = 0; i < total; i++) {
           await deleteDoc(snap.docs[i].ref);
+          totalDeletedCount++;
           setProgress(Math.round(((i + 1) / total) * 100));
         }
-        //console.log("✅ Đã xóa DIEMDANH");
       }
 
       if (bantru) {
@@ -457,17 +420,92 @@ export default function Admin({ onCancel }) {
         const total = snap.docs.length;
         for (let i = 0; i < total; i++) {
           await deleteDoc(snap.docs[i].ref);
+          totalDeletedCount++;
           setProgress(Math.round(((i + 1) / total) * 100));
         }
-        //console.log("✅ Đã xóa BANTRU");
       }
 
-      // ✅ THÊM THÔNG BÁO THÀNH CÔNG
-      setDeleteMessage("✅ Đã xóa xong dữ liệu.");
-      setDeleteSeverity("success");
+      if (nhatkybantru) {
+        setDeletingLabel("Đang xóa nhật ký bán trú...");
+        const snap = await getDocs(collection(db, `NHATKYBANTRU_${namHocValue}`));
+        const total = snap.docs.length;
+        for (let i = 0; i < total; i++) {
+          await deleteDoc(snap.docs[i].ref);
+          totalDeletedCount++;
+          setProgress(Math.round(((i + 1) / total) * 100));
+        }
+      }
 
+      // ✅ Thêm logic xóa field của học sinh bán trú
+      if (xoaHocSinhBanTru) {
+        setDeletingLabel("Đang xử lý học sinh bán trú...");
+        try {
+          const danhSachRef = collection(db, `DANHSACH_${namHocValue}`);
+          const banTruRef = collection(db, `BANTRU_${namHocValue}`);
+
+          const [danhSachSnap, banTruSnap] = await Promise.all([
+            getDocs(danhSachRef),
+            getDocs(banTruRef),
+          ]);
+
+          const hocSinhCanKiemTra = [];
+          danhSachSnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.dangKyBanTru === false) {
+              hocSinhCanKiemTra.push({
+                id: docSnap.id,
+                ref: docSnap.ref,
+                hoTen: data.hoVaTen || "(Không có tên)",
+              });
+            }
+          });
+
+          const banTruIDs = new Set(banTruSnap.docs.map((doc) => doc.id));
+
+          const batch = writeBatch(db);
+          let count = 0;
+          const tenHocSinhDaXoa = [];
+
+          hocSinhCanKiemTra.forEach(({ id, ref, hoTen }) => {
+            if (!banTruIDs.has(id)) {
+              batch.update(ref, {
+                dangKyBanTru: deleteField(),
+                diemDanhBanTru: deleteField(),
+              });
+              count++;
+              totalDeletedCount++;
+              tenHocSinhDaXoa.push(hoTen);
+            }
+          });
+
+          await batch.commit();
+
+          setDeleteMessage(`✅ Đã xoá field 'dangKyBanTru' và 'diemDanhBanTru' của ${count} học sinh.`);
+          setDeleteSeverity("success");
+
+        } catch (err) {
+          console.error("❌ Lỗi khi xử lý học sinh bán trú:", err);
+          setDeleteMessage("❌ Lỗi khi xoá field học sinh bán trú.");
+          setDeleteSeverity("error");
+        }
+      }
+
+      if (totalDeletedCount === 0) {
+        setDeleteMessage("ℹ️ Không phát hiện dòng dữ liệu nào để xóa.");
+        setDeleteSeverity("info");
+      } else {
+        setDeleteMessage(`✅ Đã xóa xong dữ liệu (${totalDeletedCount} dòng).`);
+        setDeleteSeverity("success");
+      }
+      setDeleteSeverity("success");
       setDeleteSuccess(true);
-      setDeleteCollections({ danhsach: false, bantru: false, diemdan: false });
+      setDeleteCollections({
+        danhsach: false,
+        bantru: false,
+        diemdan: false,
+        nhatkybantru: false,
+        xoaHocSinhBanTru: false,
+      });
       setShowDeleteOptions(false);
     } catch (err) {
       console.error("❌ Lỗi khi xóa dữ liệu:", err);
@@ -483,7 +521,6 @@ export default function Admin({ onCancel }) {
       }, 1500);
     }
   };
-
 
   const handleInitNewYearData = async () => {
     const confirmed = window.confirm(`⚠️ Bạn có chắc muốn khởi tạo dữ liệu cho năm ${selectedYear}?`);
@@ -598,7 +635,7 @@ export default function Admin({ onCancel }) {
             </Stack>
           )}
 
-          {/* Tab 1: Database */}
+          {/* Tab 3: Backup & Restore */}
           {tabIndex === 2 && (
             <Stack spacing={3} mt={3} sx={{ maxWidth: 300, mx: "auto", width: "100%" }}>
               <Divider><Typography fontWeight="bold">💾 Sao lưu & Phục hồi</Typography></Divider>
@@ -683,141 +720,139 @@ export default function Admin({ onCancel }) {
                 </>
               )}
 
-              {/* Nút bật/tắt phục hồi */}
+              {/* Nút phục hồi - sửa để chọn file trước, hiển thị UI sau */}
               <Button
                 variant="contained"
                 color="secondary"
                 onClick={() => {
-                  if (showRestoreOptions) {
-                    setShowRestoreOptions(false);
-                    setSelectedDataTypes({ danhsach: false, bantru: false, diemdan: false });
-                    setRestoreMode("all");
-                  } else {
-                    setShowRestoreOptions(true);
-                    setShowBackupOptions(false);
-                    setSelectedDataTypes({ danhsach: false, bantru: false, diemdan: false });
+                  setShowBackupOptions(false); // ẩn UI sao lưu nếu đang mở
+                  setShowRestoreOptions(false); // ẩn UI phục hồi
+                  setRestoreMode("all");
+                  setSelectedDataTypes({ danhsach: false, bantru: false, diemdan: false });
+                  setSelectedBackupFile(null);
+
+                  if (inputRef.current) {
+                    inputRef.current.value = ""; // reset input để đảm bảo onChange luôn chạy
+                    inputRef.current.click(); // chọn file
                   }
                 }}
               >
                 🔁 Phục hồi
               </Button>
 
-              {/* Giao diện phục hồi */}
-              {showRestoreOptions && (
-              <>
-                {/* Các checkbox lựa chọn dữ liệu */}
-                <Stack spacing={0.5} sx={{ mt: 2 }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={selectedDataTypes.danhsach}
-                        onChange={() => handleCheckboxChange("danhsach")}
-                      />
-                    }
-                    label="Danh sách"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={selectedDataTypes.bantru}
-                        onChange={() => handleCheckboxChange("bantru")}
-                      />
-                    }
-                    label="Bán trú"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={selectedDataTypes.diemdan}
-                        onChange={() => handleCheckboxChange("diemdan")}
-                      />
-                    }
-                    label="Điểm danh"
-                  />
-                </Stack>
+              {/* Input chọn file ẩn */}
+              <input
+                type="file"
+                hidden
+                ref={inputRef}
+                accept={backupFormat === "json" ? ".json" : ".xlsx"}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
 
-                {/* Chọn định dạng phục hồi */}
-                <FormControl component="fieldset" sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold">Chọn định dạng:</Typography>
-                  <RadioGroup
-                    row
-                    value={backupFormat}
-                    onChange={(e) => setBackupFormat(e.target.value)}
+                  const isValid =
+                    (backupFormat === "json" && file.name.endsWith(".json")) ||
+                    (backupFormat === "excel" && file.name.endsWith(".xlsx"));
+
+                  if (isValid) {
+                    setSelectedBackupFile(file);
+                    setTimeout(() => setShowRestoreOptions(true), 0); // tránh race condition
+                  } else {
+                    alert("❌ File không hợp lệ! Vui lòng chọn file đúng định dạng.");
+                  }
+                }}
+              />
+
+              {/* Giao diện phục hồi sau khi file hợp lệ đã được chọn */}
+              {showRestoreOptions && selectedBackupFile && (
+                <>
+                  <Stack spacing={0.5} sx={{ mt: 2 }}>
+                    <FormControlLabel
+                      control={<Checkbox checked={selectedDataTypes.danhsach} onChange={() => handleCheckboxChange("danhsach")} />}
+                      label="Danh sách"
+                    />
+                    <FormControlLabel
+                      control={<Checkbox checked={selectedDataTypes.bantru} onChange={() => handleCheckboxChange("bantru")} />}
+                      label="Bán trú"
+                    />
+                    <FormControlLabel
+                      control={<Checkbox checked={selectedDataTypes.diemdan} onChange={() => handleCheckboxChange("diemdan")} />}
+                      label="Điểm danh"
+                    />
+                  </Stack>
+
+                  <FormControl component="fieldset" sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">Chọn định dạng:</Typography>
+                    <RadioGroup
+                      row
+                      value={backupFormat}
+                      onChange={(e) => setBackupFormat(e.target.value)}
+                    >
+                      <FormControlLabel value="json" control={<Radio />} label="JSON" />
+                      <FormControlLabel value="excel" control={<Radio />} label="Excel" />
+                    </RadioGroup>
+                  </FormControl>
+
+                  <FormControl component="fieldset" sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">Chế độ phục hồi:</Typography>
+                    <RadioGroup
+                      row
+                      value={restoreMode}
+                      onChange={(e) => setRestoreMode(e.target.value)}
+                    >
+                      <FormControlLabel value="all" control={<Radio />} label="Ghi đè tất cả" />
+                      <FormControlLabel value="check" control={<Radio />} label="Chỉ ghi mới" />
+                    </RadioGroup>
+                  </FormControl>
+
+                  {/* Nút thực hiện phục hồi */}
+                  <Button
+                    variant="contained"
+                    sx={{ mt: 1 }}
+                    onClick={() => {
+                      const isEmpty =
+                        !selectedDataTypes.danhsach &&
+                        !selectedDataTypes.bantru &&
+                        !selectedDataTypes.diemdan;
+
+                      if (isEmpty) {
+                        alert("⚠️ Vui lòng chọn ít nhất một loại dữ liệu để phục hồi.");
+                        return;
+                      }
+
+                      if (!selectedBackupFile) {
+                        alert("❌ Chưa chọn file phục hồi.");
+                        return;
+                      }
+
+                      if (backupFormat === "json") {
+                        restoreFromJSONFile(
+                          selectedBackupFile,
+                          setRestoreProgress,
+                          setAlertMessage,
+                          setAlertSeverity,
+                          selectedDataTypes,
+                          restoreMode
+                        );
+                      } else {
+                        restoreFromExcelFile(
+                          selectedBackupFile,
+                          setRestoreProgress,
+                          setAlertMessage,
+                          setAlertSeverity,
+                          selectedDataTypes,
+                          restoreMode
+                        );
+                      }
+
+                      setShowRestoreOptions(false);
+                      setSelectedBackupFile(null);
+                    }}
                   >
-                    <FormControlLabel value="json" control={<Radio />} label="JSON" />
-                    <FormControlLabel value="excel" control={<Radio />} label="Excel" />
-                  </RadioGroup>
-                </FormControl>
-
-                {/* Chọn chế độ phục hồi */}
-                <FormControl component="fieldset" sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold">Chọn cách phục hồi:</Typography>
-                  <RadioGroup
-                    row
-                    value={restoreMode}
-                    onChange={(e) => setRestoreMode(e.target.value)}
-                  >
-                    <FormControlLabel value="all" control={<Radio />} label="Ghi đè tất cả" />
-                    <FormControlLabel value="check" control={<Radio />} label="Chỉ ghi mới" />
-                  </RadioGroup>
-                </FormControl>
-
-                {/* Nút thực hiện phục hồi */}
-                <Button
-                  variant="contained"
-                  sx={{ mt: 1 }}
-                  onClick={() => {
-                    const isEmpty =
-                      !selectedDataTypes.danhsach &&
-                      !selectedDataTypes.bantru &&
-                      !selectedDataTypes.diemdan;
-
-                    if (isEmpty) {
-                      alert("⚠️ Vui lòng chọn ít nhất một loại dữ liệu để phục hồi.");
-                      return;
-                    }
-
-                    if (inputRef.current) {
-                      inputRef.current.click(); // Mở hộp thoại chọn file
-                    }
-                  }}
-                >
-                  ✅ THỰC HIỆN PHỤC HỒI ({backupFormat.toUpperCase()})
-                </Button>
-
-                {/* Input chọn file ẩn */}
-                <input
-                  type="file"
-                  ref={inputRef}
-                  hidden
-                  accept={backupFormat === "json" ? ".json" : ".xlsx"}
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-
-                    if (backupFormat === "json") {
-                      restoreFromJSONFile(
-                        file,
-                        setRestoreProgress,
-                        setAlertMessage,
-                        setAlertSeverity,
-                        selectedDataTypes,
-                        restoreMode
-                      );
-                    } else {
-                      restoreFromExcelFile(
-                        file,
-                        setRestoreProgress,
-                        setAlertMessage,
-                        setAlertSeverity,
-                        selectedDataTypes,
-                        restoreMode
-                      );
-                    }
-                  }}
-                />
-              </>
-            )}
+                    ✅ THỰC HIỆN PHỤC HỒI ({backupFormat.toUpperCase()})
+                  </Button>
+                </>
+              )}
 
               {(restoreProgress > 0) && (
                 <Box sx={{ mt: 2 }}>
@@ -857,18 +892,51 @@ export default function Admin({ onCancel }) {
               {/* ✅ Khối checkbox + nút thực hiện xóa */}
               {showDeleteOptions && (
                 <>
-                  <FormGroup>
+                  <FormGroup sx={{ ml: 1 }}>
                     <FormControlLabel
-                      control={<Checkbox checked={deleteCollections.danhsach} onChange={() => handleDeleteCheckboxChange("danhsach")} />}
+                      control={
+                        <Checkbox
+                          checked={deleteCollections.danhsach}
+                          onChange={() => handleDeleteCheckboxChange("danhsach")}
+                        />
+                      }
                       label="Danh sách"
-                    />                    
+                    />
                     <FormControlLabel
-                      control={<Checkbox checked={deleteCollections.bantru} onChange={() => handleDeleteCheckboxChange("bantru")} />}
+                      control={
+                        <Checkbox
+                          checked={deleteCollections.bantru}
+                          onChange={() => handleDeleteCheckboxChange("bantru")}
+                        />
+                      }
                       label="Bán trú"
                     />
                     <FormControlLabel
-                      control={<Checkbox checked={deleteCollections.diemdan} onChange={() => handleDeleteCheckboxChange("diemdan")} />}
+                      control={
+                        <Checkbox
+                          checked={deleteCollections.diemdan}
+                          onChange={() => handleDeleteCheckboxChange("diemdan")}
+                        />
+                      }
                       label="Điểm danh"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={deleteCollections.nhatkybantru}
+                          onChange={() => handleDeleteCheckboxChange("nhatkybantru")}
+                        />
+                      }
+                      label="Lịch sử đăng ký"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={deleteCollections.xoaHocSinhBanTru}
+                          onChange={() => handleDeleteCheckboxChange("xoaHocSinhBanTru")}
+                        />
+                      }
+                      label="Xóa học sinh bán trú"
                     />
                   </FormGroup>
 
@@ -877,24 +945,17 @@ export default function Admin({ onCancel }) {
                   </Button>
 
                   {deleting && (
-                    <div style={{ margin: "8px 0", width: "100%", textAlign: "center" }}>
-                      <LinearProgress variant="determinate" value={progress} />
-                      <p style={{ marginTop: 4 }}>{deletingLabel} {progress}%</p>
-                    </div>
+                    <Box sx={{ mt: 2 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={progress}
+                        sx={{ height: 10, borderRadius: 5 }}
+                      />
+                      <ResetProgressText label={deletingLabel} progress={progress} />
+                    </Box>
                   )}
-
-                  {deleteSuccess && (
-                    <p style={{ marginTop: 8, color: "green", fontWeight: "bold", textAlign: "center" }}>
-                      ✅ Đã xóa xong dữ liệu.
-                    </p>
-                  )}
-
                 </>
               )}
-
-              <Button variant="contained" color="primary" onClick={handleDeleteKyBanTru}>
-                🗑️ Xóa lịch sử đăng ký
-              </Button>
 
               <Button variant="contained" color="warning" onClick={handleResetDangKyBanTru}>
                 ♻️ Reset bán trú
