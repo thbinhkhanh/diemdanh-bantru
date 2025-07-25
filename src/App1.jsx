@@ -17,7 +17,6 @@ import {
   Button,
 } from '@mui/material';
 
-import HomeIcon from '@mui/icons-material/Home';
 import { getDoc, setDoc, doc } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -47,6 +46,7 @@ function PrivateRoute({ children }) {
 function App() {
   const [selectedFirestore, setSelectedFirestore] = useState('firestore1');
 
+  // Load từ localStorage khi bắt đầu
   useEffect(() => {
     const saved = localStorage.getItem('selectedFirestore') || 'firestore1';
     setSelectedFirestore(saved);
@@ -55,7 +55,7 @@ function App() {
   const handleFirestoreSelect = (value) => {
     setSelectedFirestore(value);
     localStorage.setItem('selectedFirestore', value);
-    window.location.reload();
+    window.location.reload(); // Reload để firebase.js nhận config mới
   };
 
   return (
@@ -63,6 +63,8 @@ function App() {
       <ClassDataProvider>
         <NhatKyProvider>
           <Router>
+
+            {/* Chọn Firestore trên đầu trang (có thể ẩn hoặc chuyển vào menu) */}
             <div style={{ padding: 10, background: '#f0f0f0', textAlign: 'center' }}>
               <strong>Chọn Firestore: </strong>
               <label style={{ marginLeft: 10 }}>
@@ -91,6 +93,8 @@ function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
+
+                {/* Trang yêu cầu đăng nhập */}
                 <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
                 <Route path="/lop1" element={<PrivateRoute><Lop1 /></PrivateRoute>} />
                 <Route path="/lop2" element={<PrivateRoute><Lop2 /></PrivateRoute>} />
@@ -99,11 +103,19 @@ function App() {
                 <Route path="/lop5" element={<PrivateRoute><Lop5 /></PrivateRoute>} />
                 <Route path="/quanly" element={<PrivateRoute><QuanLy /></PrivateRoute>} />
                 <Route path="/nhatky" element={<PrivateRoute><NhatKyDiemDanhGV /></PrivateRoute>} />
-                <Route path="/admin" element={
-                  <Suspense fallback={<div>Đang tải trang quản lý...</div>}>
-                    <PrivateRoute><Admin /></PrivateRoute>
-                  </Suspense>
-                } />
+
+                <Route
+                  path="/admin"
+                  element={
+                    <Suspense fallback={<div>Đang tải trang quản lý...</div>}>
+                      <PrivateRoute>
+                        <Admin />
+                      </PrivateRoute>
+                    </Suspense>
+                  }
+                />
+
+                {/* Trang không cần đăng nhập */}
                 <Route path="/gioithieu" element={<About />} />
                 <Route path="/huongdan" element={<HuongDan />} />
                 <Route path="/chucnang" element={<About />} />
@@ -156,7 +168,7 @@ function Navigation() {
   };
 
   const navItems = [
-    { path: '/home', name: 'Trang chủ', icon: <HomeIcon /> },
+    { path: '/home', name: 'Trang chủ' },
     { path: '/lop1', name: 'Lớp 1' },
     { path: '/lop2', name: 'Lớp 2' },
     { path: '/lop3', name: 'Lớp 3' },
@@ -197,7 +209,6 @@ function Navigation() {
           alt="Logo"
           style={{ height: '40px', marginRight: '16px', flexShrink: 0 }}
         />
-
         {navItems.map((item, index) => (
           <Link
             key={index}
@@ -211,17 +222,13 @@ function Navigation() {
               borderBottom:
                 location.pathname === item.path ? '3px solid white' : 'none',
               borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: item.icon ? '6px' : 0,
               flexShrink: 0,
+              whiteSpace: 'nowrap',
             }}
           >
-            {item.icon && item.icon}
             {item.name}
           </Link>
         ))}
-
 
         <Button
           onClick={handleClickQuanLy}
@@ -238,7 +245,6 @@ function Navigation() {
         >
           Quản lý
         </Button>
-
 
         <Button
           onClick={handleMenuOpen}
@@ -263,7 +269,6 @@ function Navigation() {
         >
           Trợ giúp
         </Button>
-
         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
           <MenuItem component={Link} to="/huongdan" onClick={handleMenuClose}>
             Hướng dẫn sử dụng
