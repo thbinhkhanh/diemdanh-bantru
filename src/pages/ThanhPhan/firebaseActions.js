@@ -1,35 +1,76 @@
 // src/firebaseActions.js
-import { doc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 
+/**
+ * Cập nhật trạng thái registered của học sinh trong 1 lớp
+ */
+export const saveRegistrationChanges = async (students, namHoc, selectedClass) => {
+  const docRef = doc(db, `DANHSACH_${namHoc}`, selectedClass);
+  const snap = await getDoc(docRef);
 
-// Lưu thay đổi đăng ký
-export const saveRegistrationChanges = async (students, namHoc) => {
-  const tasks = students.map(async (student) => {
-    const ref = doc(db, "students", student.id);
-    await updateDoc(ref, {
-      registered: student.registered,
-    });
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const hocSinh = data.hocSinh || [];
+
+  const regMap = new Map(
+    students.map(s => [s.id || s.maDinhDanh, !!s.registered])
+  );
+
+  const updatedHocSinh = hocSinh.map(hs => {
+    const value = regMap.get(hs.id);
+    return value !== undefined ? { ...hs, registered: value } : hs;
   });
 
-  await Promise.all(tasks);
+  await setDoc(docRef, {
+    ...data,
+    hocSinh: updatedHocSinh,
+    updatedAt: new Date().toISOString()
+  });
 };
 
 // Lưu điểm danh nhiều học sinh
-export const saveMultipleDiemDanh = async (absentStudents, namHoc, date) => {
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "../../firebase";
+
+/**
+ * Cập nhật điểm danh cho lớp theo ngày
+ */
+export const saveMultipleDiemDanh = async (absentStudents, namHoc, selectedClass, date) => {
+  const docRef = doc(db, `DANHSACH_${namHoc}`, selectedClass);
+  const snap = await getDoc(docRef);
+
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const hocSinh = data.hocSinh || [];
+
   const formattedDate = date.toISOString().split("T")[0];
 
-  const tasks = absentStudents.map(async (student) => {
-    const ref = doc(db, "diemdanh", `${namHoc}_${formattedDate}_${student.id}`);
-    await setDoc(ref, {
-      studentId: student.id,
-      name: student.name,
-      vangCoPhep: student.vangCoPhep || "",
-      lyDo: student.lyDo || "",
-      ngay: formattedDate,
-      namHoc,
-    });
+  // Map ID → dữ liệu điểm danh
+  const diemDanhMap = new Map(
+    absentStudents.map(s => [s.id, {
+      phep: s.vangCoPhep === "có phép",
+      lyDo: s.lyDo || ""
+    }])
+  );
+
+  const updatedHocSinh = hocSinh.map(hs => {
+    const dd = diemDanhMap.get(hs.id);
+    if (dd) {
+      return {
+        ...hs,
+        phep: dd.phep,
+        lyDo: dd.lyDo
+      };
+    }
+    return hs;
   });
 
-  await Promise.all(tasks);
+  await setDoc(docRef, {
+    ...data,
+    hocSinh: updatedHocSinh,
+    updatedAt: new Date().toISOString()
+  });
 };

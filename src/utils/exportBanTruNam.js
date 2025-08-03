@@ -1,16 +1,11 @@
-import * as XLSX from 'sheetjs-style'; // dùng sheetjs-style để hỗ trợ style cho cell
+import * as XLSX from 'xlsx';
 
 export function exportBanTruNam(dataList, selectedYear, selectedClass, monthSet) {
-  if (!dataList || dataList.length === 0) return;
-
-  // Đảm bảo monthSet là mảng
-  if (!Array.isArray(monthSet)) {
-    monthSet = Array.from(monthSet || []);
-  }
-
   const title1 = 'TRƯỜNG TIỂU HỌC BÌNH KHÁNH';
   const title2 = `THỐNG KÊ BÁN TRÚ NĂM ${selectedYear}`;
   const title3 = `LỚP: ${selectedClass}`;
+
+  if (!dataList || dataList.length === 0) return;
 
   const headerRow = ['STT', 'HỌ VÀ TÊN', ...monthSet.map(m => `Tháng ${m}`), 'TỔNG'];
 
@@ -35,6 +30,7 @@ export function exportBanTruNam(dataList, selectedYear, selectedClass, monthSet)
     totalOfTotals += sum;
   });
 
+  // ➕ Thêm tổng của cột "TỔNG"
   totalRow.push(totalOfTotals === 0 ? "" : totalOfTotals);
 
   const finalData = [
@@ -49,7 +45,6 @@ export function exportBanTruNam(dataList, selectedYear, selectedClass, monthSet)
 
   const ws = XLSX.utils.aoa_to_sheet(finalData);
 
-  // Column width
   ws['!cols'] = [
     { wch: 5 },
     { wch: 27.5 },
@@ -58,17 +53,13 @@ export function exportBanTruNam(dataList, selectedYear, selectedClass, monthSet)
   ];
 
   const totalCols = headerRow.length;
-  const totalRows = finalData.length;
-
-  // Merge tiêu đề và dòng tổng
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
     { s: { r: 2, c: 0 }, e: { r: 2, c: totalCols - 1 } },
-    { s: { r: totalRows - 1, c: 0 }, e: { r: totalRows - 1, c: 1 } }
+    { s: { r: finalData.length - 1, c: 0 }, e: { r: finalData.length - 1, c: 1 } }
   ];
 
-  // Styling cells
   const range = XLSX.utils.decode_range(ws['!ref']);
   for (let R = 0; R <= range.e.r; ++R) {
     for (let C = 0; C <= range.e.c; ++C) {

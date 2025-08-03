@@ -276,10 +276,10 @@ export default function NhatKyGV() {
 
                     <Typography variant="body2">
                       <strong>Có phép:</strong>{" "}
-                      {item.loai?.trim().toUpperCase() === "P" ? "✅" : "❌"}
+                      {item.phep ? "✅" : "❌"}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Lý do nghỉ:</strong> {item.lydo?.trim() || "Không rõ lý do"}
+                      <strong>Lý do nghỉ:</strong> {item.lyDo?.trim() || "Không rõ lý do"}
                     </Typography>
                     <Typography variant="body2" color="error">
                       <strong>Ngày nghỉ:</strong>{" "}
@@ -340,9 +340,9 @@ export default function NhatKyGV() {
                         <TableCell>{index + 1}</TableCell>
                         <TableCell className="hoten">{item.hoTen || ""}</TableCell>
                         <TableCell>
-                          {item.loai?.trim().toUpperCase() === "P" ? "✅" : "❌"}
+                          {item.phep ? "✅" : "❌"}
                         </TableCell>
-                        <TableCell>{item.lydo?.trim() || "Không rõ lý do"}</TableCell>
+                        <TableCell>{item.lyDo?.trim() || "Không rõ lý do"}</TableCell>
                         <TableCell>
                           {item.ngay
                             ? new Date(item.ngay).toLocaleDateString("vi-VN")

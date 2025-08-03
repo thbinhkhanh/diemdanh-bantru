@@ -1,4 +1,4 @@
-import * as XLSX from 'sheetjs-style';
+import * as XLSX from "xlsx";
 
 export function exportDiemDanhNam(dataList, selectedYear, selectedClass, monthSet) {
   const title1 = 'TRƯỜNG TIỂU HỌC BÌNH KHÁNH';
@@ -157,5 +157,5 @@ export function exportDiemDanhNam(dataList, selectedYear, selectedClass, monthSe
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `Năm ${selectedYear}`);
-  XLSX.writeFile(wb, `DiemDanh_Nam${selectedYear}_Lop${selectedClass}.xlsx`);
+  XLSX.writeFile(wb, `ThongKe_Nam${selectedYear}_Lop${selectedClass}.xlsx`);
 }

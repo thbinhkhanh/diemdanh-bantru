@@ -1,5 +1,5 @@
 
-import * as XLSX from 'sheetjs-style';
+import * as XLSX from 'xlsx';
 
 export function exportDiemDanhThang(dataList, selectedDate, selectedClass, daySet) {
   const month = selectedDate.getMonth() + 1;
@@ -127,5 +127,5 @@ export function exportDiemDanhThang(dataList, selectedDate, selectedClass, daySe
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `Tháng ${month}`);
-  XLSX.writeFile(wb, `DiemDanh_Thang${month}_${selectedClass}.xlsx`);
+  XLSX.writeFile(wb, `ThongKe_Thang${month}_${selectedClass}.xlsx`);
 }

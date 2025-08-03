@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   Timestamp,
   writeBatch
@@ -29,6 +28,7 @@ export const restoreFromJSONFile = async (
     if (selectedDataTypes.danhsach) allowedPrefixes.push("DANHSACH");
     if (selectedDataTypes.bantru) allowedPrefixes.push("BANTRU");
     if (selectedDataTypes.diemdan) allowedPrefixes.push("DIEMDANH");
+    if (selectedDataTypes.nhatky) allowedPrefixes.push("NHATKYBANTRU");
 
     if (allowedPrefixes.length === 0) {
       alert("⚠️ Bạn chưa chọn loại dữ liệu nào để phục hồi!");
@@ -153,39 +153,31 @@ export const restoreFromExcelFile = async (
 
     setRestoreProgress(0);
 
-    const yearDocSnap = await getDoc(doc(db, "YEAR", "NAMHOC"));
-    if (!yearDocSnap.exists()) {
-      throw new Error("❌ Không tìm thấy năm học trong Firestore (YEAR/NAMHOC)");
-    }
-    const currentNamHoc = yearDocSnap.data().value;
-    if (!currentNamHoc) {
-      throw new Error("❌ Trường value trong YEAR/NAMHOC trống.");
-    }
-
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet);
 
-    if (!rows || rows.length === 0) {
-      setAlertMessage("⚠️ File Excel không chứa dữ liệu.");
-      setAlertSeverity("warning");
-      return;
-    }
-
-    const totalRows = rows.length;
-    let processed = 0;
+    let totalSheets = workbook.SheetNames.length;
     let addedCount = 0;
     let skippedCount = 0;
+    let processed = 0;
+    let totalRows = 0;
 
-    for (const prefix of selectedPrefixes) {
-      const collectionWithYear = `${prefix}_${currentNamHoc}`;
+    for (const sheetName of workbook.SheetNames) {
+      const [prefix, namHoc] = sheetName.split("_");
+
+      if (!selectedPrefixes.includes(prefix) || !namHoc) continue;
+
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      if (!rows || rows.length === 0) continue;
+
+      const collectionWithYear = `${prefix}_${namHoc}`;
       const onlyAddNew = restoreMode === "check";
 
       const existingIds = onlyAddNew
         ? new Set((await getDocs(collection(db, collectionWithYear))).docs.map(doc => doc.id))
         : new Set();
 
+      totalRows += rows.length;
       const docsToWrite = [];
 
       for (const row of rows) {
@@ -204,9 +196,7 @@ export const restoreFromExcelFile = async (
             dataField[normalizedDate] = value;
           } else if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
             const date = new Date(value);
-            docData[key] = isNaN(date.getTime())
-              ? value
-              : Timestamp.fromDate(date);
+            docData[key] = isNaN(date.getTime()) ? value : Timestamp.fromDate(date);
           } else {
             docData[key] = value;
           }
@@ -240,20 +230,17 @@ export const restoreFromExcelFile = async (
         });
         await batch.commit();
       }
-
-      console.groupEnd();
     }
 
     setRestoreProgress(100);
-    const message =
-      addedCount > 0
-        ? `✅ Đã phục hồi ${addedCount} dòng dữ liệu năm học ${currentNamHoc}.`
-        : `📎 Không có dữ liệu mới để phục hồi.`;
 
-    const skipNote =
-      skippedCount > 0
-        ? `🔁 Bỏ qua ${skippedCount} dòng đã tồn tại.`
-        : "";
+    const message = addedCount > 0
+      ? `✅ Đã phục hồi ${addedCount} dòng dữ liệu từ ${totalSheets} sheet.`
+      : `📎 Không có dữ liệu mới để phục hồi.`;
+
+    const skipNote = skippedCount > 0
+      ? `🔁 Bỏ qua ${skippedCount} dòng đã tồn tại.`
+      : "";
 
     setTimeout(() => {
       setAlertMessage(`${message} ${skipNote}`.trim());

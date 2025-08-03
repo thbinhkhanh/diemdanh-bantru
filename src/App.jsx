@@ -1,25 +1,13 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+// 📁 src/App.jsx
+//import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
+
 import {
-  BrowserRouter as Router,
   Routes,
   Route,
-  Link,
-  useLocation,
   Navigate,
-  useNavigate,
+  useNavigate
 } from 'react-router-dom';
-
-import {
-  Box,
-  Typography,
-  Menu,
-  MenuItem,
-  Button,
-} from '@mui/material';
-
-import HomeIcon from '@mui/icons-material/Home';
-import { getDoc, setDoc, doc } from 'firebase/firestore';
-import { db } from './firebase';
 
 import Home from './pages/Home';
 import Lop1 from './pages/Lop1';
@@ -33,286 +21,65 @@ import Footer from './pages/Footer';
 import HuongDan from './pages/HuongDan';
 import Login from './Login';
 import NhatKyDiemDanhGV from './NhatKyDiemDanhGV';
+import ChangePassword from './pages/ChangePassword';
 import { ClassDataProvider } from './context/ClassDataContext';
 import { NhatKyProvider } from './context/NhatKyContext';
 import { ClassListProvider } from './context/ClassListContext';
+import { AdminProvider } from './context/AdminContext';
+import { TeacherAccountProvider } from "./context/TeacherAccountContext";
 
-const Admin = lazy(() => import('./Admin'));
+import Navigation from './utils/Navigation';
+import PrivateRoute from './utils/PrivateRoute';
+import { Navigation_Route } from './utils/Navigation_Route';
+import SwitchAccount from './pages/SwitchAccount';
+import AccountList from "./AccountList"; 
 
-function PrivateRoute({ children }) {
-  const isLoggedIn = localStorage.getItem('loggedIn') === 'true';
-  return isLoggedIn ? children : <Navigate to="/login" replace />;
-}
+const Admin = React.lazy(() => import('./Admin'));
 
 function App() {
-  const [selectedFirestore, setSelectedFirestore] = useState('firestore1');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('selectedFirestore') || 'firestore1';
-    setSelectedFirestore(saved);
-  }, []);
-
-  const handleFirestoreSelect = (value) => {
-    setSelectedFirestore(value);
-    localStorage.setItem('selectedFirestore', value);
-    window.location.reload();
-  };
-
-  return (
-    <ClassListProvider>
-      <ClassDataProvider>
-        <NhatKyProvider>
-          <Router>
-            <div style={{ padding: 10, background: '#f0f0f0', textAlign: 'center' }}>
-              <strong>Chọn Firestore: </strong>
-              <label style={{ marginLeft: 10 }}>
-                <input
-                  type="radio"
-                  value="firestore1"
-                  checked={selectedFirestore === 'firestore1'}
-                  onChange={(e) => handleFirestoreSelect(e.target.value)}
-                />
-                Firestore 1
-              </label>
-              <label style={{ marginLeft: 20 }}>
-                <input
-                  type="radio"
-                  value="firestore2"
-                  checked={selectedFirestore === 'firestore2'}
-                  onChange={(e) => handleFirestoreSelect(e.target.value)}
-                />
-                Firestore 2
-              </label>
-            </div>
-
-            <Navigation />
-
-            <div style={{ paddingTop: 0 }}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
-                <Route path="/lop1" element={<PrivateRoute><Lop1 /></PrivateRoute>} />
-                <Route path="/lop2" element={<PrivateRoute><Lop2 /></PrivateRoute>} />
-                <Route path="/lop3" element={<PrivateRoute><Lop3 /></PrivateRoute>} />
-                <Route path="/lop4" element={<PrivateRoute><Lop4 /></PrivateRoute>} />
-                <Route path="/lop5" element={<PrivateRoute><Lop5 /></PrivateRoute>} />
-                <Route path="/quanly" element={<PrivateRoute><QuanLy /></PrivateRoute>} />
-                <Route path="/nhatky" element={<PrivateRoute><NhatKyDiemDanhGV /></PrivateRoute>} />
-                <Route path="/admin" element={
-                  <Suspense fallback={<div>Đang tải trang quản lý...</div>}>
-                    <PrivateRoute><Admin /></PrivateRoute>
-                  </Suspense>
-                } />
-                <Route path="/gioithieu" element={<About />} />
-                <Route path="/huongdan" element={<HuongDan />} />
-                <Route path="/chucnang" element={<About />} />
-              </Routes>
-
-              <Footer />
-            </div>
-          </Router>
-        </NhatKyProvider>
-      </ClassDataProvider>
-    </ClassListProvider>
-  );
-}
-
-function Navigation() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const [selectedYear, setSelectedYear] = useState('');
-  const [anchorEl, setAnchorEl] = useState(null);
-
-  useEffect(() => {
-    const fetchYear = async () => {
-      try {
-        const docRef = doc(db, 'YEAR', 'NAMHOC');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setSelectedYear(data?.value || '2024-2025');
-        } else {
-          await setDoc(docRef, { value: '2024-2025' });
-          setSelectedYear('2024-2025');
-        }
-      } catch (error) {
-        console.error('Lỗi đọc năm học từ Firestore:', error);
-      }
-    };
-    fetchYear();
-  }, []);
-
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleClickQuanLy = () => {
-    navigate('/login');
-  };
-
-  const navItems = [
-    { path: '/home', name: 'Trang chủ', icon: <HomeIcon /> },
-    { path: '/lop1', name: 'Lớp 1' },
-    { path: '/lop2', name: 'Lớp 2' },
-    { path: '/lop3', name: 'Lớp 3' },
-    { path: '/lop4', name: 'Lớp 4' },
-    { path: '/lop5', name: 'Lớp 5' },
-  ];
+  const [activeNavPath, setActiveNavPath] = useState('/home');
 
   return (
-    <nav
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 1000,
-        padding: '12px',
-        background: '#1976d2',
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        overflowX: 'auto',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          flexWrap: 'nowrap',
-          overflowX: 'auto',
-          paddingRight: '8px',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <img
-          src="/Logo.png"
-          alt="Logo"
-          style={{ height: '40px', marginRight: '16px', flexShrink: 0 }}
-        />
+    <TeacherAccountProvider>
+      <AdminProvider>
+        <ClassListProvider>
+          <ClassDataProvider>
+            <NhatKyProvider>
+              {/* ✅ Thanh menu */}
+              <Navigation />
 
-        {navItems.map((item, index) => (
-          <Link
-            key={index}
-            to={item.path}
-            style={{
-              color: 'white',
-              textDecoration: 'none',
-              padding: '8px 12px',
-              backgroundColor:
-                location.pathname === item.path ? '#1565c0' : 'transparent',
-              borderBottom:
-                location.pathname === item.path ? '3px solid white' : 'none',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: item.icon ? '6px' : 0,
-              flexShrink: 0,
-            }}
-          >
-            {item.icon && item.icon}
-            {item.name}
-          </Link>
-        ))}
-
-
-        <Button
-          onClick={handleClickQuanLy}
-          style={{
-            color: 'white',
-            padding: '8px 12px',
-            backgroundColor:
-              location.pathname === '/quanly' ? '#1565c0' : 'transparent',
-            borderBottom:
-              location.pathname === '/quanly' ? '3px solid white' : 'none',
-            borderRadius: '4px',
-            textTransform: 'none',
-          }}
-        >
-          Quản lý
-        </Button>
-
-
-        <Button
-          onClick={handleMenuOpen}
-          style={{
-            color: 'white',
-            padding: '8px 12px',
-            backgroundColor:
-              location.pathname.includes('/gioithieu') ||
-              location.pathname.includes('/huongdan') ||
-              location.pathname.includes('/chucnang')
-                ? '#1565c0'
-                : 'transparent',
-            borderBottom:
-              location.pathname.includes('/gioithieu') ||
-              location.pathname.includes('/huongdan') ||
-              location.pathname.includes('/chucnang')
-                ? '3px solid white'
-                : 'none',
-            borderRadius: '4px',
-            textTransform: 'none',
-          }}
-        >
-          Trợ giúp
-        </Button>
-
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-          <MenuItem component={Link} to="/huongdan" onClick={handleMenuClose}>
-            Hướng dẫn sử dụng
-          </MenuItem>
-          <MenuItem component={Link} to="/chucnang" onClick={handleMenuClose}>
-            Giới thiệu chức năng
-          </MenuItem>
-        </Menu>
-      </div>
-
-      <Box
-        sx={{
-          display: { xs: 'none', sm: 'flex' },
-          alignItems: 'center',
-          gap: 1,
-          flexShrink: 0,
-        }}
-      >
-        <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
-          Năm học:
-        </Typography>
-        <Box
-          sx={{
-            backgroundColor: 'white',
-            minWidth: 100,
-            maxWidth: 100,
-            borderRadius: 1,
-            height: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid #c4c4c4',
-          }}
-        >
-          <Typography
-            sx={{
-              color: '#1976d2',
-              fontWeight: 'bold',
-              fontSize: '14px',
-              textAlign: 'center',
-              padding: '6px 8px',
-              width: '100%',
-            }}
-          >
-            {selectedYear}
-          </Typography>
-        </Box>
-      </Box>
-    </nav>
+              <div style={{ paddingTop: '44px' }}>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/home" replace />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/accounts" element={<AccountList />} />
+                  <Route path="/home" element={<Home handleProtectedNavigate={(path) => Navigation_Route(path, navigate, setActiveNavPath)} />} />
+                  <Route path="/lop1" element={<PrivateRoute><Lop1 /></PrivateRoute>} />
+                  <Route path="/lop2" element={<PrivateRoute><Lop2 /></PrivateRoute>} />
+                  <Route path="/lop3" element={<PrivateRoute><Lop3 /></PrivateRoute>} />
+                  <Route path="/lop4" element={<PrivateRoute><Lop4 /></PrivateRoute>} />
+                  <Route path="/lop5" element={<PrivateRoute><Lop5 /></PrivateRoute>} />
+                  <Route path="/quanly" element={<PrivateRoute><QuanLy /></PrivateRoute>} />
+                  <Route path="/nhatky" element={<PrivateRoute><NhatKyDiemDanhGV /></PrivateRoute>} />
+                  <Route path="/doimatkhau" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
+                  <Route path="/chon-tai-khoan" element={<SwitchAccount />} />
+                  <Route path="/gioithieu" element={<About />} />
+                  <Route path="/huongdan" element={<HuongDan />} />
+                  <Route path="/chucnang" element={<About />} />
+                  <Route path="/admin" element={
+                    <Suspense>
+                      <PrivateRoute><Admin /></PrivateRoute>
+                    </Suspense>
+                  } />
+                </Routes>
+                <Footer />
+              </div>
+            </NhatKyProvider>
+          </ClassDataProvider>
+        </ClassListProvider>
+      </AdminProvider>
+    </TeacherAccountProvider>
   );
 }
 

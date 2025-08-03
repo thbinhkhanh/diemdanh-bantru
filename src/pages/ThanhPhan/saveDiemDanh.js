@@ -1,6 +1,9 @@
-import { doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
+/**
+ * Ghi điểm danh nhiều học sinh và cập nhật lại context
+ */
 export const saveMultipleDiemDanh = async (
   students,
   namHoc,
@@ -11,45 +14,30 @@ export const saveMultipleDiemDanh = async (
 ) => {
   const diemDanhCol = `DIEMDANH_${namHoc}`;
   const danhSachCol = `DANHSACH_${namHoc}`;
-  const thang = today.slice(0, 7); // yyyy-mm
-  const nam = today.slice(0, 4);  // yyyy
+  const thang = today.slice(0, 7);
+  const nam = today.slice(0, 4);
 
+  // ✅ Ghi riêng từng học sinh vào DIEMDANH như cũ
   const updates = students.map(async (s) => {
     const docId = `${s.maDinhDanh}_${today}`;
     const diemDanhRef = doc(db, diemDanhCol, docId);
-    const danhSachRef = doc(db, danhSachCol, s.maDinhDanh);
 
     try {
       if (!s.diemDanh) {
-        // ✅ Vắng → Ghi điểm danh + cập nhật DANHSACH
         const phep = s.vangCoPhep === 'có phép';
-
-        await Promise.all([
-          setDoc(diemDanhRef, {
-            maDinhDanh: s.maDinhDanh,
-            hoTen: s.hoVaTen || '',
-            lop: s.lop || '',
-            khoi: s.khoi || '',
-            ngay: today,
-            thang,
-            nam,
-            lyDo: s.lyDo || '',
-            phep: phep,
-          }),
-          updateDoc(danhSachRef, {
-            lyDo: s.lyDo || '',
-            phep: phep,
-          }),
-        ]);
+        await setDoc(diemDanhRef, {
+          maDinhDanh: s.maDinhDanh,
+          hoTen: s.hoVaTen || '',
+          lop: s.lop || '',
+          khoi: s.khoi || '',
+          ngay: today,
+          thang,
+          nam,
+          lyDo: s.lyDo?.trim() || '',
+          phep
+        });
       } else {
-        // ✅ Có mặt → Xoá điểm danh (nếu có) + reset DANHSACH
-        await Promise.all([
-          deleteDoc(diemDanhRef),
-          updateDoc(danhSachRef, {
-            lyDo: '',
-            phep: null,
-          }),
-        ]);
+        await deleteDoc(diemDanhRef);
       }
     } catch (err) {
       console.warn(`❌ Lỗi ghi điểm danh học sinh ${s.id}:`, err.message);
@@ -59,10 +47,39 @@ export const saveMultipleDiemDanh = async (
 
   await Promise.all(updates);
 
-  // 🔄 Gộp lại context
+  // ✅ Cập nhật trạng thái trực tiếp trong document lớp
+  const danhSachRef = doc(db, danhSachCol, selectedClass);
+  const snap = await getDoc(danhSachRef);
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const hocSinh = data.hocSinh || [];
+
+  const updatedHocSinh = hocSinh.map(hs => {
+    const matched = students.find(s => s.id === hs.id || s.maDinhDanh === hs.id);
+    if (!matched) return hs;
+    return !matched.diemDanh
+      ? {
+          ...hs,
+          phep: matched.vangCoPhep === 'có phép',
+          lyDo: matched.lyDo?.trim() || 'Không rõ lý do'
+        }
+      : {
+          ...hs,
+          phep: null,
+          lyDo: ''
+        };
+  });
+
+  await setDoc(danhSachRef, {
+    ...data,
+    hocSinh: updatedHocSinh,
+    updatedAt: new Date().toISOString()
+  });
+
+  // 🔄 Cập nhật lại context hiển thị
   const fullList = classData[selectedClass] || [];
   const changedMap = new Map(students.map((s) => [s.id, s]));
   const merged = fullList.map((s) => changedMap.get(s.id) || s);
-
   setClassData(selectedClass, merged);
 };

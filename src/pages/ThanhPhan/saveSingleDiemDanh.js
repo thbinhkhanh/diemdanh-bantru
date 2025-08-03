@@ -1,75 +1,89 @@
-import { doc, deleteDoc, setDoc, updateDoc, deleteField } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 /**
- * Ghi điểm danh 1 học sinh và cập nhật lại context
- * 
- * @param {object} student - Học sinh cần lưu
- * @param {string} namHoc - Ví dụ "2024-2025"
- * @param {string} selectedClass - Lớp hiện tại, ví dụ "1A"
- * @param {object} classData - context hiện tại
- * @param {function} setClassData - hàm để cập nhật context
+ * Ghi trạng thái điểm danh của một học sinh vào Firestore
+ * - Cập nhật danh sách lớp: DANHSACH_<namHoc>
+ * - Ghi hoặc xoá bản điểm danh riêng: DIEMDANH_<namHoc>
  */
 export const saveSingleDiemDanh = async (
   student,
   namHoc,
-  selectedClass,
-  classData,
-  setClassData
+  selectedClass
 ) => {
-  const now = new Date();
-  const vietnamOffsetMs = 7 * 60 * 60 * 1000;
-  const vietnamNow = new Date(now.getTime() + vietnamOffsetMs);
-  const today = vietnamNow.toISOString().split('T')[0]; // yyyy-mm-dd
-  const thang = today.slice(0, 7); // yyyy-mm
-  const nam = today.slice(0, 4); // yyyy
-
-  const collectionName = `DIEMDANH_${namHoc}`;
-  const docId = `${student.maDinhDanh}_${today}`;
-  const diemDanhRef = doc(db, collectionName, docId);
-  const danhSachRef = doc(db, `DANHSACH_${namHoc}`, student.maDinhDanh);
-
-  const lyDoGhi = student.lyDo?.trim() || 'Không rõ lý do';
-  const phep = student.vangCoPhep === 'có phép';
-
   try {
-    if (!student.diemDanh) {
-      // ✅ Vắng → Ghi điểm danh + cập nhật DANHSACH
-      await Promise.all([
-        setDoc(diemDanhRef, {
-          maDinhDanh: student.maDinhDanh,
-          hoTen: student.hoVaTen || '',
-          lop: student.lop || '',
-          khoi: student.khoi || '',
-          ngay: today,
-          thang,
-          nam,
-          lyDo: lyDoGhi,
-          phep,
-        }),
-        updateDoc(danhSachRef, {
-          lyDo: lyDoGhi,
-          phep,
-        }),
-      ]);
-    } else {
-      // ✅ Có mặt → Xoá điểm danh + reset DANHSACH
-      await Promise.all([
-        deleteDoc(diemDanhRef),
-        updateDoc(danhSachRef, {
-          lyDo: '',
-          //phep: null,
-          phep: deleteField(), // ✅ xoá hoàn toàn field "phep"
-        }),
-      ]);
+    // ⏱️ Lấy giờ Việt Nam
+    const now = new Date();
+    const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const today = vietnamTime.toISOString().split('T')[0]; // yyyy-mm-dd
+    const thang = today.slice(0, 7); // yyyy-mm
+    const nam = today.slice(0, 4);   // yyyy
+
+    // 🔗 Firestore reference
+    const danhSachRef = doc(db, `DANHSACH_${namHoc}`, selectedClass);
+    const diemDanhRef = doc(
+      db,
+      `DIEMDANH_${namHoc}`,
+      `${student.maDinhDanh || student.id}_${today}`
+    );
+
+    // 📌 Lý do và trạng thái phép
+    const lyDoGhi = (student.lyDo || '').trim() || 'Không rõ lý do';
+    const phep = student.vangCoPhep === 'có phép';
+
+    // 🧾 Đọc danh sách lớp
+    const snap = await getDoc(danhSachRef);
+    if (!snap.exists()) {
+      console.warn(`⚠️ Không tìm thấy lớp ${selectedClass}`);
+      return;
     }
 
-    // ✅ Cập nhật lại context
-    const fullList = classData[selectedClass] || [];
-    const merged = fullList.map((s) => s.id === student.id ? student : s);
-    setClassData(selectedClass, merged);
+    const data = snap.data();
+    const hocSinh = data.hocSinh || [];
+
+    // 🔄 Cập nhật học sinh
+    const updatedHocSinh = hocSinh.map(hs => {
+      const studentId = student.maDinhDanh || student.id;
+      const hsId = hs.id || hs.maDinhDanh;
+      if (hsId !== studentId) return hs;
+
+      const updated = { ...hs };
+      if (student.diemDanh === true) {
+        delete updated.lyDo;
+        delete updated.phep;
+      } else {
+        updated.lyDo = lyDoGhi;
+        updated.phep = phep;
+      }
+      updated.diemDanh = student.diemDanh ?? false;
+      return updated;
+    });
+
+    // ☁️ Ghi lại danh sách lớp
+    await setDoc(danhSachRef, {
+      ...data,
+      hocSinh: updatedHocSinh,
+      updatedAt: vietnamTime.toISOString(),
+    });
+
+    // 📌 Ghi hoặc xoá bản điểm danh riêng
+    if (student.diemDanh === false) {
+      await setDoc(diemDanhRef, {
+        maDinhDanh: student.maDinhDanh || student.id,
+        hoVaTen: student.hoVaTen || '',
+        lop: student.lop || '',
+        khoi: student.khoi || '',
+        ngay: today,
+        thang,
+        nam,
+        lyDo: lyDoGhi,
+        phep,
+      });
+    } else {
+      await deleteDoc(diemDanhRef);
+    }
   } catch (err) {
-    console.error(`❌ Lỗi khi lưu điểm danh học sinh ${student.id}:`, err.message);
+    console.error(`❌ Lỗi ghi điểm danh cho ${student.maDinhDanh}:`, err.message);
     throw err;
   }
 };

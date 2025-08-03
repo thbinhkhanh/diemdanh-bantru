@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-export async function exportFormattedExcel(dataList, columnDates, month, year, selectedClass) {
+export async function formatDiemDangThang(dataList, columnDates, month, year, selectedClass) {
   if (!dataList || dataList.length === 0) return;
 
   const workbook = new ExcelJS.Workbook();
@@ -53,14 +53,15 @@ export async function exportFormattedExcel(dataList, columnDates, month, year, s
       index + 1,
       item.hoVaTen,
       ...columnDates.map((date, i) => {
-        const mark = item.banTruNgay?.[date] === true || item.banTruNgay?.[date] === '✓' ? '✓' : '';
-        if (mark === '✓') totalPerColumn[i]++;
+        const raw = item.banTruNgay?.[date];
+        const mark = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+        if (mark === 'P' || mark === 'K') totalPerColumn[i]++;
         return mark;
       }),
     ];
 
-    // Tổng cộng theo hàng
-    const rowTotal = rowData.slice(2).filter(cell => cell === '✓').length;
+    // Tổng cộng theo hàng (số ngày có P hoặc K)
+    const rowTotal = rowData.slice(2).filter(val => val === 'P' || val === 'K').length;
     rowData.push(rowTotal);
     sheet.addRow(rowData);
   });
@@ -88,9 +89,9 @@ export async function exportFormattedExcel(dataList, columnDates, month, year, s
     });
   });
 
-  // Cột rộng
+  // Đặt độ rộng cột
   const colWidths = [
-    5, // STT
+    5,  // STT
     30, // Họ tên
     ...columnDates.map(() => 5),
     10, // Tổng cộng
@@ -101,7 +102,7 @@ export async function exportFormattedExcel(dataList, columnDates, month, year, s
 
   // Xuất file
   const now = new Date();
-  const filename = `Thong_ke_ban_tru_${selectedClass}_${month}_${year}_${now.getHours()}h${now.getMinutes()}.xlsx`;
+  const filename = `Thong_ke_nghi_ban_tru_${selectedClass}_${month}_${year}_${now.getHours()}h${now.getMinutes()}.xlsx`;
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), filename);
 }

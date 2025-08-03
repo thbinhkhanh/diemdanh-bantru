@@ -6,31 +6,38 @@ const ClassDataContext = createContext();
 export const ClassDataProvider = ({ children }) => {
   const [classDataMap, setClassDataMap] = useState({});
 
-  const setClassData = (classId, data) => {
-    if (!Array.isArray(data) || data.length === 0) {
-      console.warn(`❌ Không lưu context lớp ${classId} vì dữ liệu rỗng hoặc không hợp lệ`);
+  // 🆕 Ghi toàn bộ dữ liệu lớp (mảng học sinh)
+  const setClassData = (classId, hocSinhList) => {
+    if (!Array.isArray(hocSinhList)) {
+      console.warn(`❌ Không lưu lớp ${classId} vì dữ liệu không phải mảng`);
       return;
     }
 
-    //console.log(`💾 Ghi vào context lớp ${classId}, số lượng học sinh: ${data.length}`);
     setClassDataMap(prev => ({
       ...prev,
-      [classId]: data
+      [classId]: hocSinhList
     }));
   };
 
-
+  // 🆕 Cập nhật 1 học sinh trong lớp theo cấu trúc mới
   const updateStudentInClass = (classId, updatedStudent) => {
     setClassDataMap(prev => {
-      const current = prev[classId] || [];
-      const newList = current.map(s =>
-        s.id === updatedStudent.id ? updatedStudent : s
+      const currentList = prev[classId] || [];
+
+      // Tìm và cập nhật học sinh theo ID
+      const newList = currentList.map(s =>
+        s.id === updatedStudent.id ? { ...s, ...updatedStudent } : s
       );
-      return { ...prev, [classId]: newList };
+
+      return {
+        ...prev,
+        [classId]: newList
+      };
     });
   };
 
-  const getClassData = (classId) => classDataMap[classId];
+  // 🆕 Hàm lấy toàn bộ danh sách học sinh của lớp
+  const getClassData = (classId) => classDataMap[classId] || [];
 
   return (
     <ClassDataContext.Provider
@@ -38,7 +45,7 @@ export const ClassDataProvider = ({ children }) => {
         classDataMap,
         setClassData,
         getClassData,
-        updateClassData: updateStudentInClass // ✅ Sửa tên ở đây
+        updateClassData: updateStudentInClass
       }}
     >
       {children}
