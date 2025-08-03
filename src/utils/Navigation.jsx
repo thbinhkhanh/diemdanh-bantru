@@ -102,8 +102,28 @@ export default function Navigation() {
       }
 
       const isClassAccount = /^\d+\.\d+$/.test(loginRole);
-      if (isClassAccount) {
-        alert('⚠️ Hãy đăng xuất trước khi truy cập chức năng Quản lý.');
+      if (path === '/quanly') {
+        if (!isLoggedIn) {
+          setTimeout(() => {
+            navigate('/login', { state: { redirectTo: path } });
+          }, 300);
+          return;
+        }
+
+        const isClassAccount = /^\d+\.\d+$/.test(loginRole);
+        if (isClassAccount) {
+          // 👉 Không hỏi xác nhận nữa, chuyển thẳng đến Login
+          navigate('/login', {
+            state: {
+              redirectTo: '/quanly',
+              switchingClass: true, // đánh dấu là đang chuyển từ tài khoản lớp
+            },
+          });
+          return;
+        }
+
+        setActiveNavPath(path);
+        navigate(path);
         return;
       }
 
