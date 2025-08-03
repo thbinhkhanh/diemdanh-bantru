@@ -10,12 +10,11 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import vi from "date-fns/locale/vi";
 import { db } from "./firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { format } from "date-fns";
 import { useMediaQuery, useTheme } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useNhatKy } from "./context/NhatKyContext";
 import { LinearProgress } from "@mui/material";
+import { doc, getDoc, getDocs, collection } from "firebase/firestore";
 
 
 export default function NhatKyGV() {
@@ -30,13 +29,10 @@ export default function NhatKyGV() {
   const [filterNam, setFilterNam] = useState(today.getFullYear());
   const [dataList, setDataList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [orderBy, setOrderBy] = useState("hoTen");
+  const [orderBy, setOrderBy] = useState("hoVaTen");
   const [order, setOrder] = useState("asc");
-
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-  const { getMonthlyData, setMonthlyData, mergeMonthlyData } = useNhatKy();
 
   useEffect(() => {
     if (filterMode === "ngay") {
@@ -50,14 +46,15 @@ export default function NhatKyGV() {
 
   const fetchData = async () => {
     setIsLoading(true);
+
     try {
+      // 🔍 Lấy năm học hiện tại
       const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
       const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
       if (!namHocValue) {
         console.error("❌ Không tìm thấy năm học hiện tại!");
         setDataList([]);
-        setIsLoading(false);
         return;
       }
 
@@ -67,47 +64,24 @@ export default function NhatKyGV() {
       const ngayKey = format(selectedDate, "yyyy-MM-dd");
       const thangKey = `${nam}-${String(thang).padStart(2, "0")}`;
 
-      // Luôn kiểm tra cache trước
-      const cached = getMonthlyData(lop, nam, thang);
-
-      if (cached?.length > 0) {
-        if (filterMode === "ngay") {
-          const filtered = cached.filter(
-            (entry) => format(new Date(entry.ngay), "yyyy-MM-dd") === ngayKey
-          );
-          setDataList(filtered);
-        } else {
-          setDataList(cached);
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      // Nếu chưa có cache, load từ Firestore (toàn bộ tháng)
-      const { getDocs, collection } = await import("firebase/firestore");
       const snapshot = await getDocs(collection(db, collectionName));
-      const filtered = [];
+      const allData = [];
 
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        if (data.lop === lop && data.thang === thangKey) {
-          filtered.push({ id: docSnap.id, ...data });
+        if (data.lop === lop) {
+          allData.push({ id: docSnap.id, ...data });
         }
       });
 
-      // Lưu context
-      setMonthlyData(lop, nam, thang, filtered);
+      const filterByNgay = (data) =>
+        data.filter((entry) => format(new Date(entry.ngay), "yyyy-MM-dd") === ngayKey);
 
-      // Xử lý hiển thị
-      if (filterMode === "ngay") {
-        const filteredByDay = filtered.filter(
-          (entry) => format(new Date(entry.ngay), "yyyy-MM-dd") === ngayKey
-        );
-        setDataList(filteredByDay);
-      } else {
-        setDataList(filtered);
-      }
+      const filtered = filterMode === "ngay"
+        ? filterByNgay(allData).filter((d) => d.thang === thangKey)
+        : allData.filter((d) => d.thang === thangKey);
 
+      setDataList(filtered);
     } catch (err) {
       console.error("❌ Lỗi khi tải dữ liệu:", err);
       setDataList([]);
@@ -116,10 +90,11 @@ export default function NhatKyGV() {
     }
   };
 
-
-
   useEffect(() => {
     if (lop) {
+      //console.log('🔁 useEffect gọi fetchData vì thay đổi:', {
+      //  filterMode, selectedDate, filterThang, filterNam, lop
+      //});
       fetchData();
     }
   }, [filterMode, selectedDate, filterThang, filterNam, lop]);
@@ -131,8 +106,8 @@ export default function NhatKyGV() {
   };
 
   const sortByName = (a, b) => {
-    const splitA = a.hoTen?.trim().split(/\s+/) || [];
-    const splitB = b.hoTen?.trim().split(/\s+/) || [];
+    const splitA = a.hoVaTen?.trim().split(/\s+/) || [];
+    const splitB = b.hoVaTen?.trim().split(/\s+/) || [];
     const [hoA, ...restA] = splitA;
     const [hoB, ...restB] = splitB;
     const tenA = restA.pop();
@@ -180,17 +155,17 @@ export default function NhatKyGV() {
   }
 
   return (
-    <Box sx={{ backgroundColor: '#e3f2fd', minHeight: '100vh', py: 4 }}>
+    <Box sx={{ backgroundColor: '#e3f2fd', minHeight: '100vh', py: 3 }}>
       <Box
         sx={{
           width: "100%",
           maxWidth: "750px",
           mx: "auto",
           px: { xs: 1, sm: 2 },
-          pt: 2,
+          //pt: 2,
         }}
       >
-        <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 2, mt: 6 }}>
+        <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 2, mt: 0 }}>
           <Typography
             variant="h5"
             fontWeight="bold"
@@ -271,12 +246,12 @@ export default function NhatKyGV() {
                 sortedData.map((item, index) => (
                   <Paper key={item.id || index} sx={{ p: 2, borderLeft: '5px solid #1976d2' }}>
                     <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
-                      {index + 1}. {item.hoTen?.toUpperCase()}
+                      {index + 1}. {item.hoVaTen?.toUpperCase()}
                     </Typography>
 
                     <Typography variant="body2">
                       <strong>Có phép:</strong>{" "}
-                      {item.phep ? "✅" : "❌"}
+                      {item.phep === true ? "✅" : "❌"}
                     </Typography>
                     <Typography variant="body2">
                       <strong>Lý do nghỉ:</strong> {item.lyDo?.trim() || "Không rõ lý do"}
@@ -303,7 +278,7 @@ export default function NhatKyGV() {
                     textAlign: "center",
                     padding: "10px 8px",
                   },
-                  "& td.hoten": {
+                  "& td.hoVaTen": {
                     textAlign: "left",
                     whiteSpace: "nowrap",
                   },
@@ -338,9 +313,9 @@ export default function NhatKyGV() {
                     sortedData.map((item, index) => (
                       <TableRow key={item.id || index}>
                         <TableCell>{index + 1}</TableCell>
-                        <TableCell className="hoten">{item.hoTen || ""}</TableCell>
+                        <TableCell className="hoVaTen">{item.hoVaTen || ""}</TableCell>
                         <TableCell>
-                          {item.phep ? "✅" : "❌"}
+                          {item.phep === true ? "✅" : "❌"}
                         </TableCell>
                         <TableCell>{item.lyDo?.trim() || "Không rõ lý do"}</TableCell>
                         <TableCell>

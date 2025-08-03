@@ -1,3 +1,4 @@
+// === FILE: ChotSoLieu.jsx ===
 import React, { useState } from "react";
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
@@ -11,78 +12,9 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import vi from "date-fns/locale/vi";
 import { db } from "./firebase";
-import { collection, getDocs, doc, setDoc, getDoc, writeBatch } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
 
-// ======= Xử lý nhóm dữ liệu =======
-function groupData(data) {
-  const khoiData = {};
-  let truongSiSo = 0;
-  let truongAn = 0;
-
-  data.forEach(item => {
-    const lop = item.lop?.toString().trim();
-    const khoi = item.khoi?.toString().trim();
-    const anBanTru = item.diemDanhBanTru === true;
-
-    if (!lop || !khoi) return;
-
-    if (!khoiData[khoi]) {
-      khoiData[khoi] = {
-        group: `KHỐI ${khoi}`,
-        siSo: 0,
-        anBanTru: 0,
-        isGroup: true,
-        children: {}
-      };
-    }
-
-    if (!khoiData[khoi].children[lop]) {
-      khoiData[khoi].children[lop] = {
-        group: lop,
-        siSo: 0,
-        anBanTru: 0,
-        isGroup: false
-      };
-    }
-
-    khoiData[khoi].siSo += 1;
-    khoiData[khoi].children[lop].siSo += 1;
-    truongSiSo += 1;
-
-    if (anBanTru) {
-      khoiData[khoi].anBanTru += 1;
-      khoiData[khoi].children[lop].anBanTru += 1;
-      truongAn += 1;
-    }
-  });
-
-  const summaryData = [];
-
-  Object.keys(khoiData).sort().forEach(khoi => {
-    const khoiItem = khoiData[khoi];
-    summaryData.push({
-      group: khoiItem.group,
-      siSo: khoiItem.siSo,
-      anBanTru: khoiItem.anBanTru,
-      isGroup: true
-    });
-
-    Object.keys(khoiItem.children).sort().forEach(lop => {
-      summaryData.push(khoiItem.children[lop]);
-    });
-  });
-
-  summaryData.push({
-    group: "TRƯỜNG",
-    siSo: truongSiSo,
-    anBanTru: truongAn,
-    isGroup: true
-  });
-
-  return summaryData;
-}
-
-// ======= Dòng tóm tắt (group/lớp) =======
+// === Tóm tắt theo dòng (Group / Lớp) ===
 function SummaryRow({ row, openGroups, setOpenGroups, summaryData }) {
   const isOpen = openGroups.includes(row.group);
   const isTruong = row.group === "TRƯỜNG";
@@ -136,7 +68,7 @@ function SummaryRow({ row, openGroups, setOpenGroups, summaryData }) {
   );
 }
 
-// ======= Component chính =======
+// === Component chính ===
 export default function ChotSoLieu({ onBack }) {
   const [openGroups, setOpenGroups] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -147,8 +79,8 @@ export default function ChotSoLieu({ onBack }) {
 
   const handleUpdate = async () => {
     setIsLoading(true);
-    setShowSuccess(false);
     setErrorMessage("");
+    setShowSuccess(false);
     setSummaryData([]);
 
     const loginRole = localStorage.getItem("loginRole");
@@ -165,205 +97,109 @@ export default function ChotSoLieu({ onBack }) {
 
     if (loginRole === "yte" && selected < today) {
       setIsLoading(false);
-      setErrorMessage("⚠️ Bạn chỉ được cập nhật cho ngày hôm nay hoặc trong tương lai!");
+      setErrorMessage("⚠️ Chỉ được cập nhật hôm nay hoặc tương lai!");
       return;
     }
 
-    const adjustedDate = new Date(selected.getTime() + 7 * 60 * 60 * 1000);
-    const formattedDate = adjustedDate.toISOString().split("T")[0];
+    const formattedDate = new Date(selected.getTime() + 7 * 3600 * 1000).toISOString().split("T")[0];
 
     try {
-      const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
-      const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
+      const yearDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
+      const yearValue = yearDoc.exists() ? yearDoc.data().value : null;
 
-      if (!namHocValue) {
+      if (!yearValue) {
         setIsLoading(false);
-        setErrorMessage("❌ Không tìm thấy năm học hợp lệ trong hệ thống!");
+        setErrorMessage("❌ Không tìm thấy năm học!");
         return;
       }
 
-      const hocSinhSnap = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
-      const hocSinhList = hocSinhSnap.docs.map(d => d.data());
+      const studentSnap = await getDocs(collection(db, `DANHSACH_${yearValue}`));
 
       const lopMap = {};
       const truong = { siSo: 0, anBanTru: 0 };
-      const banTruDocs = [];
 
-      hocSinhList.forEach(hs => {
-        const {
-          maDinhDanh = "",
-          hoVaTen = "",
-          lop = "",
-          khoi = "",
-          //huyDangKy = "",
-          dangKyBanTru,
-          diemDanhBanTru,
-        } = hs;
+      studentSnap.forEach(docSnap => {
+        const lop = docSnap.id.trim();
+        const khoi = lop.split(".")[0];
+        const data = docSnap.data();
 
-        const lopKey = lop.toString().trim();
-        const khoiKey = khoi.toString().trim();
-        if (!lopKey || !khoiKey) return;
+        if (!lop || !khoi) return;
 
-        if (!lopMap[khoiKey]) {
-          lopMap[khoiKey] = { siSo: 0, anBanTru: 0, children: {} };
-        }
-        if (!lopMap[khoiKey].children[lopKey]) {
-          lopMap[khoiKey].children[lopKey] = { siSo: 0, anBanTru: 0 };
-        }
+        if (!lopMap[khoi]) lopMap[khoi] = { siSo: 0, anBanTru: 0, children: {} };
+        if (!lopMap[khoi].children[lop]) lopMap[khoi].children[lop] = { siSo: 0, anBanTru: 0 };
 
-        // ✅ Sĩ số: học sinh có đăng ký bán trú hiện tại
-        if (dangKyBanTru === true) {
-          lopMap[khoiKey].siSo += 1;
-          lopMap[khoiKey].children[lopKey].siSo += 1;
-          truong.siSo += 1;
+        Object.entries(data).forEach(([_, value]) => {
+          if (!Array.isArray(value)) return;
 
-          // ✅ Có điểm danh ăn hôm nay → tăng số ăn bán trú
-          if (diemDanhBanTru === true) {
-            lopMap[khoiKey].anBanTru += 1;
-            lopMap[khoiKey].children[lopKey].anBanTru += 1;
-            truong.anBanTru += 1;
+          value.forEach(hs => {
+            if (hs && typeof hs === "object" && hs.dangKyBanTru === true) {
+              lopMap[khoi].siSo += 1;
+              lopMap[khoi].children[lop].siSo += 1;
+              truong.siSo += 1;
 
-            const docId = `${maDinhDanh}-${formattedDate}`;
-            banTruDocs.push({
-              docId,
-              data: {
-                maDinhDanh,
-                hoVaTen,
-                lop: lopKey,
-                khoi: khoiKey,
-                ngay: formattedDate,
-                thang: formattedDate.slice(0, 7),
-                nam: formattedDate.slice(0, 4),
-                //huyDangKy,
-              },
-            });
-          }
-        }
-      });
-
-      const summaryData = [];
-
-      Object.keys(lopMap)
-        .filter(khoi => khoi.trim() !== "" && Object.keys(lopMap[khoi].children).length > 0)
-        .sort()
-        .forEach(khoi => {
-          const k = lopMap[khoi];
-          summaryData.push({
-            group: `KHỐI ${khoi}`,
-            siSo: k.siSo,
-            anBanTru: k.anBanTru,
-            isGroup: true,
-          });
-
-          Object.keys(k.children)
-            .filter(lop => lop.trim() !== "")
-            .sort()
-            .forEach(lop => {
-              const l = k.children[lop];
-              summaryData.push({
-                group: lop,
-                siSo: l.siSo,
-                anBanTru: l.anBanTru,
-                isGroup: false,
-              });
-            });
-        });
-
-      summaryData.push({
-        group: "TRƯỜNG",
-        siSo: truong.siSo,
-        anBanTru: truong.anBanTru,
-        isGroup: true,
-      });
-
-      setSummaryData(summaryData);
-      setShowSuccess(true);
-      
-      setTimeout(async () => {
-        try {
-          // 👉 Bước 1: Lấy danh sách học sinh từ DANHSACH_{namHocValue}
-          const snapshot = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
-          const students = snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
-
-          // 👉 Bước 2: Lấy document điểm danh của ngày hôm nay nếu đã tồn tại
-          const docId = formattedDate;
-          const docRef = doc(db, `BANTRU_${namHocValue}`, docId);
-          const docSnap = await getDoc(docRef);
-
-          let danhSachAnSet = new Set();
-          if (docSnap.exists()) {
-            const existing = docSnap.data().danhSachAn || [];
-            danhSachAnSet = new Set(existing);
-          }
-
-          // 👉 Bước 3: Chuẩn bị danh sách log
-          let ghiMoiList = [];
-          let daCoBoQuaList = [];
-          let daXoaList = [];
-          let khongCoDeXoaList = [];
-
-          // 👉 Bước 4: Cập nhật danh sách theo điểm danh mới
-          students.forEach(({ data }) => {
-            const {
-              maDinhDanh,
-              hoVaTen,
-              lop,
-              diemDanhBanTru,
-              dangKyBanTru
-            } = data;
-
-            if (!dangKyBanTru || !maDinhDanh) return;
-
-            const logInfo = `${hoVaTen} | Lớp: ${lop} | Ngày: ${formattedDate} | ID: ${maDinhDanh}`;
-
-            if (diemDanhBanTru === true) {
-              // ✅ Có ăn → thêm nếu chưa có
-              if (!danhSachAnSet.has(maDinhDanh)) {
-                danhSachAnSet.add(maDinhDanh);
-                ghiMoiList.push(logInfo);
-              } else {
-                daCoBoQuaList.push(logInfo);
-              }
-            } else if (diemDanhBanTru === false) {
-              // ❌ Không ăn → xoá nếu đang có
-              if (danhSachAnSet.has(maDinhDanh)) {
-                danhSachAnSet.delete(maDinhDanh);
-                daXoaList.push(logInfo);
-              } else {
-                khongCoDeXoaList.push(logInfo);
+              if (hs.diemDanhBanTru === true) {
+                lopMap[khoi].anBanTru += 1;
+                lopMap[khoi].children[lop].anBanTru += 1;
+                truong.anBanTru += 1;
               }
             }
           });
+        });
+      });
 
-          // 👉 Bước 5: Ghi lại danh sách mới vào Firestore
-          const updatedList = Array.from(danhSachAnSet);
-          await setDoc(docRef, {
-            ngay: formattedDate,
-            danhSachAn: updatedList
+      const summary = [];
+
+      Object.keys(lopMap).sort().forEach(khoi => {
+        const group = lopMap[khoi];
+        summary.push({ group: `KHỐI ${khoi}`, siSo: group.siSo, anBanTru: group.anBanTru, isGroup: true });
+
+        Object.keys(group.children).sort().forEach(lop => {
+          const item = group.children[lop];
+          summary.push({ group: lop, siSo: item.siSo, anBanTru: item.anBanTru, isGroup: false });
+        });
+      });
+
+      summary.push({ group: "TRƯỜNG", siSo: truong.siSo, anBanTru: truong.anBanTru, isGroup: true });
+
+      setSummaryData(summary);
+      setShowSuccess(true);
+
+      // === Ghi danh sách điểm danh bán trú vào Firestore ===
+      const attendanceRef = doc(db, `BANTRU_${yearValue}`, formattedDate);
+      const oldDoc = await getDoc(attendanceRef);
+      let currentSet = new Set(oldDoc.exists() ? oldDoc.data().danhSachAn : []);
+      let newList = [], removed = [];
+
+      studentSnap.forEach(docSnap => {
+        const data = docSnap.data();
+
+        Object.values(data).forEach(field => {
+          if (!Array.isArray(field)) return;
+
+          field.forEach(hs => {
+            const { maDinhDanh, dangKyBanTru, diemDanhBanTru } = hs;
+            if (!maDinhDanh || !dangKyBanTru) return;
+
+            if (diemDanhBanTru === true) {
+              currentSet.add(maDinhDanh);
+              newList.push(maDinhDanh);
+            } else if (diemDanhBanTru === false && currentSet.has(maDinhDanh)) {
+              currentSet.delete(maDinhDanh);
+              removed.push(maDinhDanh);
+            }
           });
+        });
+      });
 
-          // 👉 Bước 6: Log kết quả đầy đủ
-          console.log("📥 Ghi mới (thêm):", ghiMoiList.length, ghiMoiList);
-          console.log("🔁 Bỏ qua (đã có):", daCoBoQuaList.length);
-          console.log("🗑 Đã xoá:", daXoaList.length);
-          if (daXoaList.length > 0) {
-            console.log("🗑 Danh sách học sinh bị xoá:");
-            daXoaList.forEach(info => {
-              console.log("   - " + info);
-            });
-          }
-          console.log("⚠️ Không có để xoá:", khongCoDeXoaList.length);
-          console.log("✅ Cập nhật danh sách ăn bán trú xong:", formattedDate);
+      await setDoc(attendanceRef, {
+        ngay: formattedDate,
+        danhSachAn: Array.from(currentSet),
+      });
 
-        } catch (err) {
-          console.error("❌ Lỗi cập nhật danh sách bán trú:", err);
-        }
-      }, 100);
-
-
+      //console.log("✅ Đã cập nhật:", formattedDate, "| Ghi mới:", newList.length, "| Xoá:", removed.length);
     } catch (err) {
       console.error("❌ Lỗi khi xử lý:", err);
-      setErrorMessage("❌ Lỗi trong quá trình xử lý dữ liệu!");
+      setErrorMessage("❌ Có lỗi xảy ra khi cập nhật!");
     } finally {
       setIsLoading(false);
     }
@@ -402,12 +238,7 @@ export default function ChotSoLieu({ onBack }) {
             color="primary"
             onClick={handleUpdate}
             disabled={isLoading}
-            sx={{
-              fontSize: { xs: "0.75rem", sm: "1rem" },
-              minWidth: 120,
-              height: 40,
-              textTransform: "none",
-            }}
+            sx={{ fontSize: { xs: "0.75rem", sm: "1rem" }, minWidth: 120, height: 40, textTransform: "none" }}
           >
             CẬP NHẬT
           </Button>
@@ -416,9 +247,7 @@ export default function ChotSoLieu({ onBack }) {
         {isLoading && (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 4 }}>
             <LinearProgress sx={{ width: '50%', mb: 2 }} />
-            <Typography variant="body2" color="textSecondary">
-              Đang cập nhật dữ liệu...
-            </Typography>
+            <Typography variant="body2" color="textSecondary">Đang cập nhật dữ liệu...</Typography>
           </Box>
         )}
 
@@ -433,17 +262,9 @@ export default function ChotSoLieu({ onBack }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {summaryData
-                  .filter(row => row.isGroup)
-                  .map((row, index) => (
-                    <SummaryRow
-                      key={index}
-                      row={row}
-                      openGroups={openGroups}
-                      setOpenGroups={setOpenGroups}
-                      summaryData={summaryData}
-                    />
-                  ))}
+                {summaryData.filter(r => r.isGroup).map((row, i) => (
+                  <SummaryRow key={i} row={row} openGroups={openGroups} setOpenGroups={setOpenGroups} summaryData={summaryData} />
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
@@ -453,9 +274,7 @@ export default function ChotSoLieu({ onBack }) {
         {errorMessage && <Alert severity="error" sx={{ mt: 3 }}>{errorMessage}</Alert>}
 
         <Stack sx={{ mt: 3 }}>
-          <Button onClick={onBack} color="secondary" fullWidth>
-            ⬅️ Quay lại
-          </Button>
+          <Button onClick={onBack} color="secondary" fullWidth>⬅️ Quay lại</Button>
         </Stack>
       </Paper>
     </Box>

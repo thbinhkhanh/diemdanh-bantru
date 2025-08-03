@@ -5,17 +5,18 @@ import {
   Select, FormControl, InputLabel, Checkbox, Card, LinearProgress,
   Alert
 } from '@mui/material';
-import { getDocs, getDoc, collection, doc, updateDoc, setDoc, addDoc } from 'firebase/firestore';
+import { getDocs, getDoc, collection, doc, updateDoc, setDoc, addDoc, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { MySort } from './utils/MySort';
 import { useClassList } from './context/ClassListContext';
 import { useClassData } from './context/ClassDataContext';
-import { query, where } from "firebase/firestore";
+//import { query, where } from "firebase/firestore";
 import { enrichStudents } from "./pages/ThanhPhan/enrichStudents";
 
 export default function LapDanhSach({ onBack }) {
   const { getClassList, setClassListForKhoi } = useClassList();
   const { getClassData, setClassData } = useClassData();
+  const [fetchedClasses, setFetchedClasses] = useState({});
 
   const [allStudents, setAllStudents] = useState([]); // lưu học sinh của lớp đang chọn
   const [selectedClass, setSelectedClass] = useState('');
@@ -93,11 +94,56 @@ export default function LapDanhSach({ onBack }) {
 
     const fetchStudentsForClass = async () => {
       setIsLoading(true);
+      const key = selectedClass;
+
       try {
-        const cached = getClassData(selectedClass);
-        if (cached && cached.length > 0) {
-          const sortedCached = MySort(cached); // 👉 thêm dòng này để sắp xếp
-          const transformedCached = sortedCached.map((s, index) => {
+        const cached = getClassData?.(key);
+        const alreadyFetched = fetchedClasses?.[key];
+        const shouldFetchClass = !Array.isArray(cached) || cached.length === 0;
+
+        let studentsData = [];
+
+        if (!shouldFetchClass || alreadyFetched) {
+          //console.log(`📦 Dữ liệu lớp ${key} lấy từ context hoặc đã cached.`);
+          const sortedCached = MySort(cached);
+          studentsData = sortedCached.map((s, index) => {
+            const isRegistered = s.dangKyBanTru === true;
+            return {
+              ...s,
+              stt: index + 1,
+              registered: isRegistered,
+              originalRegistered: isRegistered,
+            };
+          });
+        } else {
+          //console.log(`🌐 Dữ liệu lớp ${key} đang được lấy từ Firestore...`);
+
+          const docRef = doc(db, `DANHSACH_${namHocValue}`, key);
+          const docSnap = await getDoc(docRef);
+          const danhSachData = [];
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+
+            Object.entries(data).forEach(([field, value]) => {
+              if (Array.isArray(value)) {
+                value.forEach(hs => {
+                  if (hs && typeof hs === "object") {
+                    danhSachData.push({
+                      ...hs,
+                      id: hs.maDinhDanh || hs.id || hs.uid || `missing-${Math.random().toString(36).substring(2)}`,
+                      lop: key,
+                    });
+                  }
+                });
+              }
+            });
+          } else {
+            console.warn(`⚠️ Không tìm thấy document lớp ${key} trong Firestore.`);
+          }
+
+          const enriched = enrichStudents(danhSachData, null, key, true);
+          studentsData = MySort(enriched).map((s, index) => {
             const isRegistered = s.dangKyBanTru === true;
             return {
               ...s,
@@ -107,40 +153,18 @@ export default function LapDanhSach({ onBack }) {
             };
           });
 
-          setFilteredStudents(transformedCached);
-          setAllStudents(transformedCached);
-          return;
+          setClassData?.(key, studentsData);
+          setFetchedClasses?.(prev => ({ ...prev, [key]: true }));
         }
 
-        const snapshot = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
-        const rawStudents = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        const studentsOfClass = rawStudents.filter(s => s.lop === selectedClass);
-        const enriched = enrichStudents(studentsOfClass, null, selectedClass, true);
-
-        const enrichedStudents = MySort(enriched).map((s, index) => {
-          const isRegistered = s.dangKyBanTru === true;
-          return {
-            ...s,
-            stt: index + 1,
-            registered: isRegistered,
-            originalRegistered: isRegistered,
-          };
-        });
-
-
-        setClassData(selectedClass, enrichedStudents);
-        setFilteredStudents(enrichedStudents);
-        setAllStudents(enrichedStudents);
+        setFilteredStudents(studentsData);
+        setAllStudents(studentsData);
       } catch (err) {
-        console.error('❌ Lỗi khi fetch học sinh:', err);
+        console.error("❌ Lỗi khi fetch học sinh:", err);
         setAlertInfo({
           open: true,
-          message: '❌ Không thể tải dữ liệu học sinh.',
-          severity: 'error',
+          message: "❌ Không thể tải dữ liệu học sinh.",
+          severity: "error",
         });
       } finally {
         setIsLoading(false);
@@ -148,7 +172,7 @@ export default function LapDanhSach({ onBack }) {
     };
 
     fetchStudentsForClass();
-  }, [selectedClass, namHocValue, getClassData, setClassData]);
+  }, [selectedClass, namHocValue]);
 
 
 const handleClassChange = (event) => {
@@ -180,88 +204,120 @@ const handleClassChange = (event) => {
     if (loginRole !== "admin" && loginRole !== "bgh") {
       setAlertInfo({
         open: true,
-        message: '❌ Bạn không có quyền lập danh sách bán trú!',
-        severity: 'error',
+        message: "❌ Bạn không có quyền lập danh sách bán trú!",
+        severity: "error",
       });
       return;
     }
 
     setIsSaving(true);
-    setAlertInfo({ open: false, message: '', severity: 'success' });
+    setAlertInfo({ open: false, message: "", severity: "success" });
 
     try {
-      const changedStudents = filteredStudents.filter(
-        s => s.registered !== s.originalRegistered
-      );
-
       if (!namHocValue) throw new Error("Không có năm học hợp lệ");
+
+      const changedStudents = filteredStudents.filter(
+        (s) => s.registered !== s.originalRegistered
+      );
 
       if (changedStudents.length === 0) {
         setAlertInfo({
           open: true,
-          message: '✅ Không có thay đổi nào để lưu.',
-          severity: 'success'
+          message: "✅ Không có thay đổi nào để lưu.",
+          severity: "success",
         });
         return;
       }
 
-      for (let student of changedStudents) {
-        await updateDoc(doc(db, `DANHSACH_${namHocValue}`, student.id), {
-          dangKyBanTru: student.registered,
-          diemDanhBanTru: student.registered,
+      const classDocRef = doc(db, `DANHSACH_${namHocValue}`, selectedClass);
+      const classDocSnap = await getDoc(classDocRef);
+
+      if (!classDocSnap.exists()) {
+        setAlertInfo({
+          open: true,
+          message: "❌ Không tìm thấy dữ liệu lớp!",
+          severity: "error",
         });
-
-          // Ghi nhật ký bán trú KHÔNG ghi đè và có thời gian chi tiết
-          const timestamp = Date.now();
-          const logId = `${student.lop}-${student.id.slice(-7)}-${timestamp}`;
-          const logRef = doc(db, `NHATKYBANTRU_${namHocValue}`, logId);
-
-          await setDoc(logRef, {
-            maDinhDanh: `${student.lop}-${student.id.slice(-7)}`,
-            hoVaTen: student.hoVaTen || "",
-            lop: student.lop || selectedClass,
-            trangThai: student.registered ? "Đăng ký" : "Hủy đăng ký",
-            ngayDieuChinh: getNgayVN(), // 👇 Định nghĩa lại bên dưới
-          });
+        setIsSaving(false);
+        return;
       }
 
-      // Cập nhật lại local state và context
-      const updatedAllStudents = allStudents.map(student => {
-        const changed = changedStudents.find(s => s.id === student.id);
-        if (changed) {
-          return {
-            ...student,
-            registered: changed.registered,
-            originalRegistered: changed.registered,
-            dangKyBanTru: changed.registered,
-            diemDanhBanTru: changed.registered,
-          };
+      const data = classDocSnap.data();
+      const updatedFields = {};
+      const timestampNow = Date.now();
+
+      // ✅ Duyệt qua từng mảng học sinh (field) để cập nhật
+      Object.entries(data).forEach(([fieldKey, fieldValue]) => {
+        if (Array.isArray(fieldValue)) {
+          const newArray = fieldValue.map((hs) => {
+            const change = changedStudents.find((c) => c.maDinhDanh === hs.maDinhDanh);
+            if (change) {
+              return {
+                ...hs,
+                dangKyBanTru: change.registered,
+                diemDanhBanTru: change.registered,
+              };
+            }
+            return hs;
+          });
+
+          updatedFields[fieldKey] = newArray;
         }
-        return student;
       });
 
-      setAllStudents(updatedAllStudents);
-      setFilteredStudents(updatedAllStudents);
-      setClassData(selectedClass, updatedAllStudents);
+      await updateDoc(classDocRef, updatedFields);
+
+      // ✅ Ghi log nhật ký bán trú dùng batch
+      const batch = writeBatch(db);
+      changedStudents.forEach((s, i) => {
+        const logId = `${getNgayVN().split(" ")[0]}_${s.maDinhDanh}-${timestampNow}-${i}`;
+        const logRef = doc(db, `NHATKYBANTRU_${namHocValue}`, logId);
+
+        batch.set(logRef, {
+          maDinhDanh: `${s.maDinhDanh}`, // ✅ cũng nên format lại nếu muốn đồng bộ
+          hoVaTen: s.hoVaTen || "",
+          lop: selectedClass, // ✅ lớp cố định
+          trangThai: s.registered ? "Đăng ký" : "Hủy đăng ký",
+          ngayDieuChinh: getNgayVN(),
+        });
+      });
+
+      await batch.commit();
+
+      // ✅ Cập nhật state
+      const updatedAll = allStudents.map((student) => {
+        const changed = changedStudents.find((s) => s.maDinhDanh === student.maDinhDanh);
+        return changed
+          ? {
+              ...student,
+              registered: changed.registered,
+              originalRegistered: changed.registered,
+              dangKyBanTru: changed.registered,
+              diemDanhBanTru: changed.registered,
+            }
+          : student;
+      });
+
+      setAllStudents(updatedAll);
+      setFilteredStudents(updatedAll);
+      setClassData(selectedClass, updatedAll);
 
       setAlertInfo({
         open: true,
-        message: '✅ Lưu thành công!',
-        severity: 'success'
+        message: "✅ Lưu thành công!",
+        severity: "success",
       });
     } catch (err) {
-      console.error('❌ Lỗi khi lưu dữ liệu:', err);
+      console.error("❌ Lỗi khi lưu dữ liệu:", err);
       setAlertInfo({
         open: true,
-        message: '❌ Không thể lưu dữ liệu.',
-        severity: 'error',
+        message: "❌ Không thể lưu dữ liệu.",
+        severity: "error",
       });
     } finally {
       setIsSaving(false);
     }
   };
-
-
 
   return (
     <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>

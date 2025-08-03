@@ -78,23 +78,29 @@ export default function NhatKyDiemDanh({ onBack }) {
         q = query(diemDanhRef, where("thang", "==", thangStr));
       } else if (filterMode === "nam") {
         q = query(diemDanhRef, where("nam", "==", `${filterNam}`));
+      } else {
+        // Nếu không có filter phù hợp, lấy toàn bộ
+        q = diemDanhRef;
       }
 
-      const querySnapshot = await getDocs(q);
-      let records = [];
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        records.push({
-          id: docSnap.id,
-          ...data,
-          loai: data.phep ? "P" : "K", // để tương thích cấu trúc cũ
-          lydo: data.lyDo || "",       // đổi từ lyDo (mới) về lydo (cũ)
-        });
-      });
+      const snapshot = await getDocs(q);
+      const records = snapshot.docs
+        .map((docSnap) => {
+          const data = docSnap.data();
 
-      const cleanedData = records.filter((item) => item.lop && item.hoTen);
-
-      setDataList(cleanedData);
+          return {
+            id: docSnap.id,
+            hoTen: data.hoTen || data.hoVaTen || "Không rõ",
+            lop: data.lop || "Không rõ",
+            ngay: data.ngay || "",
+            loai: data.phep ? "P" : "K",
+            lydo: data.lyDo || "",
+            trangThai: data.trangThai || "",
+          };
+        })
+        .filter((item) => item.hoTen && item.lop && item.ngay); // lọc bản ghi hợp lệ
+      
+      setDataList(records);
     } catch (err) {
       console.error("❌ Lỗi khi tải dữ liệu:", err);
       setDataList([]);

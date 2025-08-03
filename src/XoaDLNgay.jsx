@@ -35,6 +35,7 @@ import {
   doc,
   deleteField,
   getDoc,
+  setDoc 
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -148,50 +149,52 @@ export default function XoaDLNgay({ onBack }) {
         return;
       }
 
-      const danhSachRef = collection(db, `BANTRU_${namHocValue}`);
-      const snapshot = await getDocs(danhSachRef);
+      const docRef = doc(db, `BANTRU_${namHocValue}`, selectedDateStr);
+      const docSnap = await getDoc(docRef);
 
-      // 🔍 Lọc theo ID có chứa ngày và lớp
-      const docsToDelete = snapshot.docs.filter((docSnap) => {
-        const id = docSnap.id;
-        const [prefix, dateStr] = id.split("_");
-        const maLop = prefix.split("-")[0];
-
-        return (
-          dateStr === selectedDateStr &&
-          (option === "toantruong" || (option === "chonlop" && maLop === selectedClass))
-        );
-      });
-
-      const totalDocs = docsToDelete.length;
-
-      if (totalDocs > 0) {
-        let completed = 0;
-
-        await Promise.all(
-          docsToDelete.map(async (docSnap) => {
-            await deleteDoc(doc(db, `BANTRU_${namHocValue}`, docSnap.id));
-            completed += 1;
-            setProgressValue((completed / totalDocs) * 100);
-          })
-        );
-
-        if (option === "toantruong") {
-          setResultMessage(`✅ Đã xoá dữ liệu toàn trường ngày ${selectedDateStr}`);
-        } else {
-          setResultMessage(`✅ Đã xoá dữ liệu lớp ${selectedClass} ngày ${selectedDateStr}`);
-        }
-
-      } else {
+      if (!docSnap.exists()) {
+        setProgressing(false);
         setResultMessage("⚠️ Không có dữ liệu nào để xoá.");
+        return;
       }
 
-      setProgressing(false);
+      const data = docSnap.data();
+      let danhSachAn = data.danhSachAn || [];
+
+      if (option === "toantruong") {
+        await deleteDoc(docRef);
+        //console.log(`🗑️ Đã xoá toàn bộ dữ liệu ngày ${selectedDateStr}`);
+        setResultMessage(`✅ Đã xoá toàn bộ dữ liệu ngày ${selectedDateStr}`);
+      } else if (option === "chonlop") {
+        const removedStudents = danhSachAn.filter(id => {
+          const maLop = id.split("-")[0];
+          return maLop === selectedClass;
+        });
+
+        const filteredList = danhSachAn.filter(id => {
+          const maLop = id.split("-")[0];
+          return maLop !== selectedClass;
+        });
+
+        await setDoc(docRef, {
+          ...data,
+          danhSachAn: filteredList,
+        });
+
+        //console.log(`🗑️ Đã xoá ${removedStudents.length} học sinh lớp ${selectedClass}:`);
+        removedStudents.forEach(id => {
+          //console.log(`— ${id}`);
+        });
+
+        setResultMessage(`✅ Đã xoá dữ liệu lớp ${selectedClass} ngày ${selectedDateStr}`);
+      }
+
       setShowSuccess(true);
     } catch (error) {
       console.error("❌ Lỗi khi xoá dữ liệu:", error);
-      setProgressing(false);
       setResultMessage("❌ Có lỗi xảy ra khi xoá dữ liệu. Vui lòng thử lại.");
+    } finally {
+      setProgressing(false);
     }
   };
 

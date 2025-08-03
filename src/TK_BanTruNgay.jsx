@@ -180,7 +180,7 @@ export default function ThongKeTheoNgay({ onBack }) {
         const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
         if (!namHocValue) {
-          console.error("❌ Không tìm thấy năm học hiện tại trong hệ thống!");
+          console.error("❌ Không tìm thấy năm học hiện tại!");
           setIsLoading(false);
           return;
         }
@@ -188,28 +188,42 @@ export default function ThongKeTheoNgay({ onBack }) {
         // 🗓 Format ngày thành chuỗi yyyy-MM-dd
         const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-        // 🔄 Lấy document bán trú theo ngày và danh sách toàn trường
+        // 🔄 Tải dữ liệu: bán trú + danh sách toàn trường (nhiều lớp)
         const [banTruDoc, danhSachSnap] = await Promise.all([
           getDoc(doc(db, `BANTRU_${namHocValue}`, dateStr)),
           getDocs(collection(db, `DANHSACH_${namHocValue}`)),
         ]);
 
-        // ✅ Tách dữ liệu đúng nguồn
         const banTruData = banTruDoc.exists() ? banTruDoc.data().danhSachAn : [];
-        const danhSachData = danhSachSnap.docs.map(doc => doc.data());
 
-        // 🔍 Kiểm tra dữ liệu đầu vào
-        //console.log("🔍 Tổng số học sinh đăng ký ăn bán trú:", danhSachData.length);
-        //console.log("🔍 Số học sinh đã điểm danh hôm nay:", banTruData.length);
-        //console.log("📌 Mã học sinh đã điểm danh:", banTruData.map(d => d.maDinhDanh?.trim()));
-        //console.log("📌 Mã học sinh đăng ký ăn:", danhSachData.map(d => d.maDinhDanh?.trim()));
+        // 📚 Duyệt qua các lớp và lấy tất cả học sinh từ các field mảng
+        const danhSachData = [];
 
-        // 🚀 Gọi hàm thống kê
+        danhSachSnap.forEach(doc => {
+          const lop = doc.id; // ID tài liệu là tên lớp
+          const data = doc.data();
+
+          Object.entries(data).forEach(([key, value]) => {
+            if (Array.isArray(value)) {
+              value.forEach(hs => {
+                if (hs && typeof hs === "object") {
+                  danhSachData.push({
+                    ...hs,
+                    id: hs.maDinhDanh || `${lop}_${key}_${Math.random().toString(36).slice(2)}`,
+                    lop: lop,
+                  });
+                }
+              });
+            }
+          });
+        });
+
+        // 🚀 Gọi hàm thống kê với dữ liệu đã chuẩn hóa
         setDataList(banTruData);
         const summary = groupData(banTruData, danhSachData);
         setSummaryData(summary);
       } catch (err) {
-        console.error("❌ Lỗi khi tải dữ liệu từ Firebase:", err);
+        console.error("❌ Lỗi khi tải dữ liệu:", err);
       } finally {
         setIsLoading(false);
       }

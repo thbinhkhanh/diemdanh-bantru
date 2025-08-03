@@ -172,14 +172,20 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
   const [summaryData, setSummaryData] = useState([]);
   const [openGroups, setOpenGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { classLists, setClassListForKhoi } = useClassList();
+  const { classLists } = useClassList();
+  const { getClassList, setClassListForKhoi } = useClassList();
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
+        //console.log("🔄 Bắt đầu tải dữ liệu điểm danh...");
+
+        // 📅 Lấy năm học hiện tại
         const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
         const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
+
+        //console.log("📘 Năm học hiện tại:", namHocValue);
 
         if (!namHocValue) {
           console.error("❌ Không tìm thấy năm học hiện tại!");
@@ -188,53 +194,59 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
         }
 
         const ngayChon = format(selectedDate, "yyyy-MM-dd");
-        //console.log("📅 đang truy vấn điểm danh ngày:", ngayChon);
+        //console.log("📅 Ngày được chọn:", ngayChon);
 
-        // 🔍 Truy vấn điểm danh theo ngày từ DIEMDANH_YYYY-YYYY
+        // 📄 Truy vấn điểm danh theo ngày
         const q = query(
           collection(db, `DIEMDANH_${namHocValue}`),
           where("ngay", "==", ngayChon)
         );
         const snapshot = await getDocs(q);
-        const diemDanhData = snapshot.docs.map(doc => doc.data());
+        const diemDanhData = snapshot.docs.map((doc) => doc.data());
 
-        //console.log("📄 Tổng bản ghi truy được:", diemDanhData.length);
-        //console.log("📋 Dữ liệu truy vấn:", diemDanhData);
+        //console.log("📄 Số bản ghi điểm danh truy được:", diemDanhData.length);
 
-        // 🔍 Lấy danh sách lớp từ context (classLists là { K1: [...], K2: [...], ... })
-        // 🔍 Lấy danh sách lớp: nếu chưa có thì tải từ Firestore và merge vào context
+        // ⚡️ Lấy danh sách lớp từ context hoặc Firestore nếu chưa có
         let danhSachLop = {};
-        if (Object.keys(classLists).length > 0) {
-          Object.values(classLists).forEach((list) => {
+        const cachedList = getClassList("TRUONG");
+        //console.log("📦 Danh sách lớp từ cache:", cachedList);
+
+        if (cachedList.length > 0) {
+          cachedList.forEach((lop) => {
+            if (typeof lop === "string") {
+              danhSachLop[lop.trim()] = true;
+            }
+          });
+          //console.log("✅ Đã sử dụng danh sách lớp từ cache:", Object.keys(danhSachLop));
+        } else {
+          //console.log("🔍 Không có cache, đang tải từ Firestore...");
+          const docRef = doc(db, `CLASSLIST_${namHocValue}`, "TRUONG");
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            const list = docSnap.data().list || [];
+            //console.log("📥 Danh sách lớp từ Firestore:", list);
+
             list.forEach((lop) => {
               if (typeof lop === "string") {
                 danhSachLop[lop.trim()] = true;
               }
             });
-          });
-        } else {
-          const truongDoc = await getDoc(doc(db, "CLASSLIST", "TRUONG"));
-          if (truongDoc.exists()) {
-            const classData = truongDoc.data(); // ví dụ: { K1: [...], K2: [...] }
-            for (const khoi in classData) {
-              setClassListForKhoi(khoi, classData[khoi]); // 🧠 merge vào context
-              classData[khoi].forEach((lop) => {
-                if (typeof lop === "string") {
-                  danhSachLop[lop.trim()] = true;
-                }
-              });
-            }
+            setClassListForKhoi("TRUONG", list);
+            //console.log("✅ Đã lưu danh sách lớp vào context:", Object.keys(danhSachLop));
           } else {
-            console.warn("⚠️ Không tìm thấy CLASSLIST/TRUONG trong Firestore");
+            console.warn(`⚠️ Không tìm thấy CLASSLIST_${namHocValue}/TRUONG`);
           }
         }
 
+        //console.log("📊 Danh sách lớp dùng để thống kê:", Object.keys(danhSachLop));
 
-
+        // 📊 Gộp dữ liệu điểm danh theo lớp
         const summary = groupDataFromNhatKy(diemDanhData, danhSachLop);
-        //console.log("📊 Kết quả thống kê:", summary);
+
         setDataList(diemDanhData);
         setSummaryData(summary);
+        //console.log("✅ Dữ liệu đã được cập nhật vào state");
       } catch (err) {
         console.error("❌ Lỗi khi tải dữ liệu:", err.message);
       } finally {
@@ -244,6 +256,8 @@ export default function ThongKeNgay_DiemDanh({ onBack }) {
 
     fetchData();
   }, [selectedDate]);
+
+
 
   return (
     <Box sx={{ maxWidth: 500, margin: "auto", p: 1, mt: 2 }}>

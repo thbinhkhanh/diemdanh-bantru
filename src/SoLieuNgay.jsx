@@ -22,20 +22,18 @@ import { db } from './firebase';
 // Hàm gom nhóm dữ liệu theo lớp và khối
 async function groupData(namHocValue) {
   const danhsachSnap = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
-  const allStudents = danhsachSnap.docs.map(doc => doc.data());
-
   const khoiData = {};
   let truongSiSo = 0;
   let truongAn = 0;
 
-  allStudents.forEach(item => {
-    const lop = item.lop?.toString().trim();
-    const khoi = lop?.split(".")[0];
-    const isSiSo = item.dangKyBanTru === true;
-    const isAnBanTru = item.diemDanhBanTru === true;
+  danhsachSnap.forEach(docSnap => {
+    const lop = docSnap.id.trim(); // Tên tài liệu là tên lớp, ví dụ: "1.2"
+    const khoi = lop.split(".")[0];
+    const data = docSnap.data();
 
     if (!lop || !khoi) return;
 
+    // Khởi tạo dữ liệu khối
     if (!khoiData[khoi]) {
       khoiData[khoi] = {
         group: `KHỐI ${khoi}`,
@@ -46,6 +44,7 @@ async function groupData(namHocValue) {
       };
     }
 
+    // Khởi tạo dữ liệu lớp
     if (!khoiData[khoi].children[lop]) {
       khoiData[khoi].children[lop] = {
         group: lop,
@@ -55,32 +54,50 @@ async function groupData(namHocValue) {
       };
     }
 
-    if (isSiSo) {
-      khoiData[khoi].siSo += 1;
-      khoiData[khoi].children[lop].siSo += 1;
-      truongSiSo += 1;
+    // Duyệt từng field trong tài liệu
+    Object.entries(data).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        //console.log(`📚 Đang duyệt danh sách học sinh trong key: ${key}`);
+        value.forEach(hs => {
+          if (hs && typeof hs === 'object' && hs.dangKyBanTru === true) {
+            khoiData[khoi].siSo += 1;
+            khoiData[khoi].children[lop].siSo += 1;
+            truongSiSo += 1;
 
-      if (isAnBanTru) {
-        khoiData[khoi].anBanTru += 1;
-        khoiData[khoi].children[lop].anBanTru += 1;
-        truongAn += 1;
+            //console.log("👤 Học sinh đăng ký bán trú:", hs.hoVaTen);
+
+            if (hs.diemDanhBanTru === true) {
+              khoiData[khoi].anBanTru += 1;
+              khoiData[khoi].children[lop].anBanTru += 1;
+              truongAn += 1;
+
+              //console.log("🍱 Đã điểm danh ăn bán trú:", hs.hoVaTen);
+            } else {
+              //console.log("📋 Chưa điểm danh bán trú:", hs.hoVaTen);
+            }
+          } else {
+            //console.log("⚠️ Không tính vào bán trú:", hs);
+          }
+        });
+      } else {
+        //console.log(`⚠️ Field ${key} không phải danh sách học sinh:`, value);
       }
-    }
+    });
   });
 
+  // Biến thành mảng summary
   const summaryData = [];
 
   Object.keys(khoiData).sort().forEach(khoi => {
-    const khoiItem = khoiData[khoi];
     summaryData.push({
-      group: khoiItem.group,
-      siSo: khoiItem.siSo,
-      anBanTru: khoiItem.anBanTru,
+      group: khoiData[khoi].group,
+      siSo: khoiData[khoi].siSo,
+      anBanTru: khoiData[khoi].anBanTru,
       isGroup: true,
     });
 
-    Object.keys(khoiItem.children).sort().forEach(lop => {
-      summaryData.push(khoiItem.children[lop]);
+    Object.keys(khoiData[khoi].children).sort().forEach(lop => {
+      summaryData.push(khoiData[khoi].children[lop]);
     });
   });
 
@@ -156,35 +173,31 @@ export default function SoLieuTrongNgay({ onBack }) {
   const today = new Date().toLocaleDateString("vi-VN");
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // 🔄 Lấy năm học hiện tại
-        const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
-        const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
+  const fetchData = async () => {
+    try {
+      // 🔄 Lấy năm học hiện tại
+      const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
+      const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
 
-        if (!namHocValue) {
-          alert("❗ Không tìm thấy năm học hợp lệ trong hệ thống!");
-          setLoading(false);
-          return;
-        }
-
-        // ✅ Lấy toàn bộ dữ liệu DANHSACH_[NĂM_HỌC]
-        const snapshot = await getDocs(collection(db, `DANHSACH_${namHocValue}`));
-        const allData = snapshot.docs.map(doc => doc.data());
-
-        // ✅ Gọi hàm groupData để thống kê
-        const summary = await groupData(namHocValue);
-        setSummaryData(summary);
-      } catch (error) {
-        console.error("❌ Lỗi khi lấy dữ liệu Firestore:", error);
-        alert("❌ Không thể tải dữ liệu từ Firestore!");
-      } finally {
+      if (!namHocValue) {
+        alert("❗ Không tìm thấy năm học hợp lệ trong hệ thống!");
         setLoading(false);
+        return;
       }
-    };
 
-    fetchData();
-  }, []);
+      // 🔎 Không cần lưu toàn bộ dữ liệu lớp vào biến nếu chỉ dùng groupData
+      const summary = await groupData(namHocValue);
+      setSummaryData(summary);
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy dữ liệu Firestore:", error);
+      alert("❌ Không thể tải dữ liệu từ Firestore!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
 
   return (
     <Box

@@ -46,11 +46,12 @@ export default function DiemDanhThang({ onBack }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { getClassList, setClassListForKhoi } = useClassList();
   const { getClassData, setClassData } = useClassData();
+  const [fetchedClasses, setFetchedClasses] = useState({});
 
   const headCellStyle = {
     fontWeight: "bold",
-    backgroundColor: theme.palette.primary.main, // ✅ đổi từ `theme.palette.grey[200]`
-    color: "#fff",                                // ✅ chữ màu trắng
+    backgroundColor: "#1976d2", // Màu nền xanh
+    color: "white",             // Màu chữ trắng
     border: "1px solid #ccc",
   };
 
@@ -144,7 +145,9 @@ export default function DiemDanhThang({ onBack }) {
 
     const fetchStudents = async () => {
       setIsLoading(true);
+
       try {
+        // 🎓 Lấy năm học hiện tại
         const namHocDoc = await getDoc(doc(db, "YEAR", "NAMHOC"));
         const namHocValue = namHocDoc.exists() ? namHocDoc.data().value : null;
         if (!namHocValue) {
@@ -152,33 +155,67 @@ export default function DiemDanhThang({ onBack }) {
           return;
         }
 
-        let rawData = getClassData(selectedClass);
-        if (!Array.isArray(rawData) || rawData.length === 0) {
-          const danhSachSnap = await getDocs(query(
-            collection(db, `DANHSACH_${namHocValue}`),
-            where("lop", "==", selectedClass)
-          ));
-          const danhSachData = danhSachSnap.docs.map(d => d.data());
+        // 📦 Kiểm tra cache lớp đã fetch + dữ liệu context
+        const contextData = getClassData(selectedClass);
+        const alreadyFetched = fetchedClasses[selectedClass];
+        const shouldFetchClass = !Array.isArray(contextData) || contextData.length === 0;
+
+        let rawData = [];
+
+        if (!shouldFetchClass || alreadyFetched) {
+          //console.log(`📦 Dữ liệu lớp ${selectedClass} lấy từ context hoặc đã cached.`);
+          rawData = contextData;
+        } else {
+          //console.log(`🌐 Dữ liệu lớp ${selectedClass} đang được lấy từ Firestore...`);
+          // 📥 Truy xuất document ứng với lớp
+          const docRef = doc(db, `DANHSACH_${namHocValue}`, selectedClass);
+          const docSnap = await getDoc(docRef);
+
+          const danhSachData = [];
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+
+            Object.entries(data).forEach(([_, value]) => {
+              if (Array.isArray(value)) {
+                value.forEach(hs => {
+                  if (hs && typeof hs === "object") {
+                    danhSachData.push({
+                      ...hs,
+                      id: hs.maDinhDanh || hs.id || hs.uid || `missing-${Math.random().toString(36).substring(2)}`,
+                      lop: selectedClass
+                    });
+                  }
+                });
+              }
+            });
+          }
 
           const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
           const enriched = enrichStudents(danhSachData, selectedDateStr, selectedClass, true);
+
           const enrichedWithId = enriched.map(hs => ({
             ...hs,
             id: hs.maDinhDanh || hs.id || hs.uid || `missing-${Math.random().toString(36).substring(2)}`
           }));
+
           setClassData(selectedClass, enrichedWithId);
+          setFetchedClasses(prev => ({ ...prev, [selectedClass]: true }));
           rawData = enrichedWithId;
         }
 
+        // 🗓 Tải toàn bộ dữ liệu điểm danh
         const diemDanhSnap = await getDocs(collection(db, `DIEMDANH_${namHocValue}`));
         const diemDanhData = diemDanhSnap.docs.map(doc => doc.data());
 
+        // 📅 Tạo danh sách ngày trong tháng hiện tại
         const year = selectedDate.getFullYear();
         const month = selectedDate.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const fullDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
         setDaySet(fullDays);
 
+        // 🔍 Xử lý và hiển thị dữ liệu
         processStudentData(rawData, diemDanhData, selectedClass, selectedDate);
       } catch (err) {
         console.error("❌ Lỗi khi tải dữ liệu:", err);
@@ -330,7 +367,7 @@ export default function DiemDanhThang({ onBack }) {
                 <TableRow
                   key={student.id}
                   sx={{
-                    height: 48,                    
+                    height: 48, 
                     "& td": { border: "1px solid #ccc", py: 1 },
                   }}
                 >
@@ -385,7 +422,7 @@ export default function DiemDanhThang({ onBack }) {
                       );
                     })}
 
-                  <TableCell align="center" sx={{px: 1 }}>                    
+                  <TableCell align="center" sx={{px: 1 }}>
                     {student.total > 0 ? student.total : ""}
                   </TableCell>
                 </TableRow>

@@ -95,7 +95,7 @@ export default function TaiDanhSach({ onBack }) {
           headerRow.push((cell?.v || '').toString().trim().toUpperCase());
         }
 
-        const expectedHeaders = ['STT', 'HỌ VÀ TÊN', 'LỚP', 'ĐĂNG KÝ'];
+        const expectedHeaders = ['STT', 'MÃ ĐỊNH DANH', 'HỌ VÀ TÊN', 'LỚP', 'ĐĂNG KÝ'];
         const isValidHeader = headerRow.length === expectedHeaders.length &&
           expectedHeaders.every((title, index) => headerRow[index] === title);
 
@@ -137,12 +137,11 @@ export default function TaiDanhSach({ onBack }) {
   const processStudentData = async (jsonData) => {
     const studentCollection = `DANHSACH_${namHoc}`;
     const classListCollection = `CLASSLIST_${namHoc}`;
-    const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
 
     const studentsNew = jsonData.map(row => {
       const lop = row['LỚP']?.toString().trim().toUpperCase();
-      const randomId = nanoid();
-      const maDinhDanh = `${lop}-${randomId}`;
+      const maDinhDanhRaw = row['MÃ ĐỊNH DANH']?.toString().trim().toUpperCase();
+      const maDinhDanh = `${lop}-${maDinhDanhRaw}`;
       const dangKyStr = row['ĐĂNG KÝ']?.toString().trim().toLowerCase();
 
       const student = {
@@ -150,7 +149,7 @@ export default function TaiDanhSach({ onBack }) {
         maDinhDanh,
         hoVaTen: row['HỌ VÀ TÊN']?.toString().trim(),
         lop,
-        khoi: lop.charAt(0),
+        khoi: lop.charAt(0)
       };
 
       if (dangKyStr === 'x') {
@@ -167,32 +166,67 @@ export default function TaiDanhSach({ onBack }) {
       return;
     }
 
+    // 🔄 Gom học sinh theo lớp
+    const groupedByClass = {};
+    studentsNew.forEach(student => {
+      const lop = student.lop?.trim().toUpperCase();
+      if (!lop) return;
+
+      if (!groupedByClass[lop]) groupedByClass[lop] = [];
+
+      const hocSinhData = {
+        maDinhDanh: student.maDinhDanh,
+        hoTen: student.hoVaTen,
+        stt: student.stt,
+        diemDanh: true
+        //phep: false,
+        //lyDo: ''
+      };
+
+      if (student.dangKyBanTru === true) {
+        hocSinhData.dangKyBanTru = true;
+        hocSinhData.diemDanhBanTru = true;
+      }
+
+      groupedByClass[lop].push(hocSinhData);
+    });
+
+    const allLopKeys = Object.keys(groupedByClass);
+    setTotalCount(allLopKeys.length);
+
     let successCount = 0;
     let errorCount = 0;
-    setTotalCount(studentsNew.length);
-
     const BATCH_LIMIT = 500;
 
-    for (let i = 0; i < studentsNew.length; i += BATCH_LIMIT) {
-      const chunk = studentsNew.slice(i, i + BATCH_LIMIT);
+    for (let i = 0; i < allLopKeys.length; i += BATCH_LIMIT) {
+      const chunkKeys = allLopKeys.slice(i, i + BATCH_LIMIT);
       const batch = writeBatch(db);
 
-      chunk.forEach(student => {
-        const docRef = doc(db, studentCollection, student.maDinhDanh);
-        batch.set(docRef, student);
+      chunkKeys.forEach(lop => {
+        const docRef = doc(db, studentCollection, lop);
+        batch.set(docRef, {
+          lop,
+          hocSinh: groupedByClass[lop],
+          updatedAt: new Date().toISOString()
+        });
       });
 
       try {
         await batch.commit();
-        successCount += chunk.length;
+        successCount += chunkKeys.length;
       } catch (err) {
-        console.error(`❌ Lỗi khi ghi batch từ ${i} đến ${i + BATCH_LIMIT}:`, err.message);
-        errorCount += chunk.length;
+        console.error(`❌ Lỗi khi ghi batch lớp từ ${i} đến ${i + chunkKeys.length}:`, err.message);
+        errorCount += chunkKeys.length;
       }
 
-      setCurrentIndex(Math.min(i + BATCH_LIMIT, studentsNew.length));
-      setProgress(Math.round(((i + BATCH_LIMIT) / studentsNew.length) * 100));
+      // ✅ Tính đúng tiến trình đã xử lý
+      const processed = i + chunkKeys.length;
+      setCurrentIndex(processed);
+      setProgress(Math.min(100, Math.round((processed / allLopKeys.length) * 100)));
     }
+
+    const totalStudentsAdded = Object.values(groupedByClass)
+      .reduce((acc, list) => acc + list.length, 0);
 
     try {
       const truongRef = doc(db, classListCollection, 'TRUONG');
@@ -200,21 +234,18 @@ export default function TaiDanhSach({ onBack }) {
       const oldClasses = truongSnap.exists() ? truongSnap.data().list || [] : [];
       const allClasses = new Set(oldClasses);
 
-      // ✅ Thêm các lớp mới
       studentsNew.forEach(student => {
         const lop = student.lop?.toString().trim();
         if (lop) allClasses.add(lop);
       });
 
-      // ✅ Sắp xếp các lớp
       const classArray = Array.from(allClasses).map(x => x.replace(/\s+/g, '').toUpperCase()).sort((a, b) =>
         a.localeCompare(b, 'vi', { numeric: true })
       );
 
-      const grouped = {}; // Khối: K1, K2, K3...
-
+      const grouped = {};
       classArray.forEach(lop => {
-        const khoiMatch = lop.match(/^(\d+)/); // Lấy toàn bộ chữ số đầu (vd: 1.1 → 1)
+        const khoiMatch = lop.match(/^(\d+)/);
         if (khoiMatch) {
           const khoi = `K${khoiMatch[1]}`;
           if (!grouped[khoi]) grouped[khoi] = [];
@@ -222,25 +253,25 @@ export default function TaiDanhSach({ onBack }) {
         }
       });
 
-      // ✅ Lưu danh sách toàn trường
       await setDoc(doc(db, classListCollection, 'TRUONG'), { list: classArray });
 
-      // ✅ Lưu theo từng khối
       for (const khoiKey in grouped) {
         await setDoc(doc(db, classListCollection, khoiKey), { list: grouped[khoiKey] });
       }
 
-      console.log('✅ Cập nhật CLASSLIST thành công');
+      //console.log('✅ Cập nhật CLASSLIST thành công');
     } catch (e) {
       console.error('❌ Lỗi khi cập nhật CLASSLIST:', e.message);
     }
 
-
     if (successCount > 0) setSelectedFile(null);
     setSuccess(errorCount === 0);
-    setMessage(errorCount === 0
-      ? `✅ Đã thêm thành công ${successCount} học sinh mới.`
-      : `⚠️ Có ${errorCount} lỗi khi thêm ${studentsNew.length} học sinh mới.`);
+    //setMessage(errorCount === 0
+    //  ? `✅ Đã thêm thành công ${successCount} lớp học sinh.`
+    //  : `⚠️ Có ${errorCount} lỗi khi thêm danh sách lớp học sinh.`);
+      setMessage(errorCount === 0
+    ? `✅ Đã thêm thành công ${successCount} lớp với tổng cộng ${totalStudentsAdded} học sinh.`
+    : `⚠️ Có ${errorCount} lỗi khi thêm danh sách lớp học sinh.`);
   };
 
   return (
