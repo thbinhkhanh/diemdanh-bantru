@@ -1,5 +1,4 @@
-
-import * as XLSX from 'xlsx';
+import * as XLSX from 'sheetjs-style'; // dùng sheetjs-style để hỗ trợ style cho cell
 
 export function exportBanTruThang(dataList, selectedDate, selectedClass, daySet) {
   const month = selectedDate.getMonth() + 1;
@@ -41,6 +40,7 @@ export function exportBanTruThang(dataList, selectedDate, selectedClass, daySet)
 
   const ws = XLSX.utils.aoa_to_sheet(finalData);
 
+  // Đặt độ rộng cột
   ws["!cols"] = [
     { wch: 5 },
     { wch: 27 },
@@ -51,6 +51,7 @@ export function exportBanTruThang(dataList, selectedDate, selectedClass, daySet)
   const totalCols = headerRow.length;
   const totalRows = finalData.length;
 
+  // Merge các dòng tiêu đề và dòng tổng cộng
   ws["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
@@ -58,14 +59,15 @@ export function exportBanTruThang(dataList, selectedDate, selectedClass, daySet)
     { s: { r: totalRows - 1, c: 0 }, e: { r: totalRows - 1, c: 1 } },
   ];
 
+  // Styling
   const range = XLSX.utils.decode_range(ws["!ref"]);
-
   for (let R = 0; R <= range.e.r; ++R) {
     for (let C = 0; C <= range.e.c; ++C) {
       const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
       const cell = ws[cellRef];
       if (!cell) continue;
 
+      // Tiêu đề
       if (R === 0) {
         cell.s = {
           font: { italic: true, color: { rgb: "2E74B5" }, sz: 12 },
@@ -81,40 +83,31 @@ export function exportBanTruThang(dataList, selectedDate, selectedClass, daySet)
           font: { bold: true, sz: 14 },
           alignment: { horizontal: "center", vertical: "center" },
         };
-      } else if (R === 4) {
+      }
+      // Header
+      else if (R === 4) {
         cell.s = {
           font: { bold: true },
           fill: { fgColor: { rgb: "EAF1FB" } },
-          border: {
-            top: { style: "thin", color: { rgb: "000000" } },
-            bottom: { style: "thin", color: { rgb: "000000" } },
-            left: { style: "thin", color: { rgb: "000000" } },
-            right: { style: "thin", color: { rgb: "000000" } },
-          },
+          border: border("000000"),
           alignment: { horizontal: "center", vertical: "center" },
         };
-      } else if (R >= 5 && R < range.e.r) {
+      }
+      // Dữ liệu
+      else if (R >= 5 && R < range.e.r) {
         cell.s = {
-          border: {
-            top: { style: "thin", color: { rgb: "999999" } },
-            bottom: { style: "thin", color: { rgb: "999999" } },
-            left: { style: "thin", color: { rgb: "999999" } },
-            right: { style: "thin", color: { rgb: "999999" } },
-          },
+          border: border("999999"),
           alignment: {
             horizontal: C === 1 ? "left" : "center",
             vertical: "center",
           },
         };
-      } else if (R === range.e.r) {
+      }
+      // Tổng cộng
+      else if (R === range.e.r) {
         cell.s = {
           font: { bold: true },
-          border: {
-            top: { style: "thin", color: { rgb: "999999" } },
-            bottom: { style: "thin", color: { rgb: "999999" } },
-            left: { style: "thin", color: { rgb: "999999" } },
-            right: { style: "thin", color: { rgb: "999999" } },
-          },
+          border: border("999999"),
           alignment: { horizontal: "center", vertical: "center" },
         };
       }
@@ -124,4 +117,14 @@ export function exportBanTruThang(dataList, selectedDate, selectedClass, daySet)
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `Tháng ${month}`);
   XLSX.writeFile(wb, `ThongKe_Thang${month}_${selectedClass}.xlsx`);
+}
+
+// Hàm helper tạo viền
+function border(color) {
+  return {
+    top: { style: "thin", color: { rgb: color } },
+    bottom: { style: "thin", color: { rgb: color } },
+    left: { style: "thin", color: { rgb: color } },
+    right: { style: "thin", color: { rgb: color } },
+  };
 }
