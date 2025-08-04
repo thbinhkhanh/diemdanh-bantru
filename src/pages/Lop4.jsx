@@ -63,6 +63,7 @@ export default function DanhSach() {
   const [showAbsentList, setShowAbsentList] = useState(false);
   const absentStudents = students.filter(s => !s.diemDanh);
   const hasAbsent = absentStudents.length > 0;
+  const [hoveredRowId, setHoveredRowId] = useState(null);
 
   const lop = location.state?.lop || localStorage.getItem('lop');
 
@@ -123,7 +124,6 @@ export default function DanhSach() {
     
     }
   }, [location.state]);
-
 
   useEffect(() => {
     setExpandedRowId(null);
@@ -501,11 +501,34 @@ export default function DanhSach() {
               <TableBody>
                 {(viewMode === 'bantru' ? students.filter(s => s.dangKyBanTru) : students).map((s, index) => (
                   <React.Fragment key={s.id}>
-                    <TableRow>
-                      <TableCell align="center" sx={{ px: { xs: 1, sm: 2 }, width: { xs: 30, sm: 'auto' } }}>
+                    <TableRow
+                      onMouseEnter={() => setHoveredRowId(s.id)}
+                      onMouseLeave={() => setHoveredRowId(null)}
+                      sx={{
+                        '&:hover': {
+                          backgroundColor: '#f5f5f5',
+                        }
+                      }}
+                    >
+                      <TableCell
+                        align="center"
+                        sx={{
+                          px: { xs: 1, sm: 2 },
+                          width: { xs: 30, sm: 'auto' },
+                          backgroundColor: hoveredRowId === s.id ? '#f5f5f5' : 'inherit'
+                        }}
+                      >
                         {index + 1}
                       </TableCell>
-                      <TableCell align="left" sx={{ px: { xs: 1, sm: 2 }, maxWidth: { xs: 200, sm: 'none' } }}>
+
+                      <TableCell
+                        align="left"
+                        sx={{
+                          px: { xs: 1, sm: 2 },
+                          maxWidth: { xs: 200, sm: 'none' },
+                          backgroundColor: hoveredRowId === s.id ? '#f5f5f5' : 'inherit'
+                        }}
+                      >
                         <Typography
                           sx={{
                             color: '#000000',
@@ -522,6 +545,7 @@ export default function DanhSach() {
                           {s.hoVaTen || 'Không có tên'}
                         </Typography>
                       </TableCell>
+
                       {viewMode === 'diemdanh' && (
                         <TableCell align="center">
                           <Checkbox
@@ -612,6 +636,7 @@ export default function DanhSach() {
                   </React.Fragment>
                 ))}
               </TableBody>
+
             </Table>
           </TableContainer>
         )}
