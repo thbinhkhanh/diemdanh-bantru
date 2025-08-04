@@ -47,6 +47,9 @@ export default function DiemDanhThang({ onBack }) {
   const { getClassList, setClassListForKhoi } = useClassList();
   const { getClassData, setClassData } = useClassData();
   const [fetchedClasses, setFetchedClasses] = useState({});
+  const [hoveredRowId, setHoveredRowId] = useState(null);
+  const [selectedRowId, setSelectedRowId] = useState(null);
+
 
   const headCellStyle = {
     fontWeight: "bold",
@@ -283,7 +286,6 @@ export default function DiemDanhThang({ onBack }) {
                   InputProps: {
                     inputComponent: (props) => {
                       const month = selectedDate.getMonth() + 1;
-                      const year = selectedDate.getFullYear();
                       return <input {...props} value={`Tháng ${month}`} readOnly />;
                     },
                   },
@@ -366,8 +368,19 @@ export default function DiemDanhThang({ onBack }) {
               {dataList.map((student) => (
                 <TableRow
                   key={student.id}
+                  onMouseEnter={() => setHoveredRowId(student.id)}
+                  onMouseLeave={() => setHoveredRowId(null)}
+                  onClick={() => setSelectedRowId(prev => (prev === student.id ? null : student.id))}
                   sx={{
-                    height: 48, 
+                    height: 48,
+                    cursor: "pointer",
+                    backgroundColor:
+                      student.id === selectedRowId
+                        ? "#e3f2fd"
+                        : hoveredRowId === student.id
+                        ? "#f5f5f5"
+                        : "inherit",
+                    transition: "background-color 0.2s ease",
                     "& td": { border: "1px solid #ccc", py: 1 },
                   }}
                 >
@@ -378,8 +391,14 @@ export default function DiemDanhThang({ onBack }) {
                       px: 1,
                       position: "sticky",
                       left: 0,
-                      backgroundColor: "#fff",
+                      backgroundColor:
+                        student.id === selectedRowId
+                          ? "#e3f2fd"
+                          : hoveredRowId === student.id
+                          ? "#f5f5f5"
+                          : "#fff",
                       zIndex: 1,
+                      transition: "background-color 0.2s ease",
                     }}
                   >
                     {student.stt}
@@ -391,8 +410,14 @@ export default function DiemDanhThang({ onBack }) {
                       px: 1,
                       position: "sticky",
                       left: 48,
-                      backgroundColor: "#fff",
+                      backgroundColor:
+                        student.id === selectedRowId
+                          ? "#e3f2fd"
+                          : hoveredRowId === student.id
+                          ? "#f5f5f5"
+                          : "#fff",
                       zIndex: 1,
+                      transition: "background-color 0.2s ease",
                     }}
                   >
                     {student.hoVaTen}
@@ -400,19 +425,19 @@ export default function DiemDanhThang({ onBack }) {
 
                   {showDays &&
                     daySet.map((d) => {
-                      const info = student.daySummary?.[d];  // d là chuỗi ngày, VD: "2025-07-10"
+                      const info = student.daySummary?.[d];
                       const phep = info?.phep;
                       const loai = phep === true ? "P" : phep === false ? "K" : "";
                       const lydo = info?.lyDo ?? "";
                       const tooltip = lydo?.trim()
                         ? lydo
                         : loai === "K"
-                          ? "Không rõ lý do"
-                          : undefined;
+                        ? "Không rõ lý do"
+                        : undefined;
 
                       return (
                         <TableCell
-                          key={`${student.id}-${d}`}  // tránh lỗi "Each child needs a unique key"
+                          key={`${student.id}-${d}`}
                           align="center"
                           sx={{ px: 1 }}
                           title={tooltip}
@@ -422,13 +447,12 @@ export default function DiemDanhThang({ onBack }) {
                       );
                     })}
 
-                  <TableCell align="center" sx={{px: 1 }}>
+                  <TableCell align="center" sx={{ px: 1 }}>
                     {student.total > 0 ? student.total : ""}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
-
           </Table>
         </TableContainer>
 

@@ -27,7 +27,7 @@ export default function CapNhatDS({ onBack }) {
   const [namHocValue, setNamHocValue] = useState(null);
 
   const [customHoTen, setCustomHoTen] = useState("");
-  const [customMaDinhDanh, setCustomMaDinhDanh] = useState("");
+  //const [customMaDinhDanh, setCustomMaDinhDanh] = useState("");
   const { getClassList, setClassListForKhoi } = useClassList();
   const { getClassData, setClassData } = useClassData();
   const [fetchedClasses, setFetchedClasses] = useState({});
@@ -35,7 +35,7 @@ export default function CapNhatDS({ onBack }) {
 
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const dangKyOptions = ["Đăng ký", "Hủy đăng ký"];
-  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
+  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8);
 
   const isDangKyDisabled = nhapTuDanhSach === "thuCong" || (nhapTuDanhSach === "danhSach" && !selectedStudentId);
 

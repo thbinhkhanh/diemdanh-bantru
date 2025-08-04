@@ -31,6 +31,8 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
   const { getClassList, setClassListForKhoi } = useClassList();
   const { getClassData, setClassData } = useClassData(); 
   const [fetchedClasses, setFetchedClasses] = useState({});
+  const [hoveredRowId, setHoveredRowId] = useState(null);
+  const [selectedRowId, setSelectedRowId] = useState(null);
 
   useEffect(() => {
     const fetchNamHoc = async () => {
@@ -229,29 +231,59 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
 
   return (
     <Box sx={{ width: "100%", overflowX: "auto", mt: 2, px: 1 }}>
-      <Paper elevation={3} sx={{
-        p: 4,
-        borderRadius: showMonths ? 0 : 4,
-        mx: "auto",
-        overflowX: "auto",
-        ...(showMonths
-          ? {
-              position: "fixed",
-              top: 0, left: 0, right: 0, bottom: 0,
-              zIndex: 1300, backgroundColor: "white", overflow: "auto"
-            }
-          : {
-              width: "max-content"
-            }),
-      }}>
+      <Paper
+        elevation={3}
+        sx={{
+          p: 4,
+          borderRadius: showMonths ? 0 : 4,
+          mx: "auto",
+          overflowX: "auto",
+          ...(showMonths
+            ? {
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 1300,
+                backgroundColor: "white",
+                overflow: "auto",
+              }
+            : {
+                width: "max-content",
+              }),
+        }}
+      >
         <Box sx={{ mb: 5 }}>
-          <Typography variant="h5" fontWeight="bold" color="primary" align="center" sx={{ mb: 1 }}>
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            color="primary"
+            align="center"
+            sx={{ mb: 1 }}
+          >
             ĐIỂM DANH NĂM {selectedDate.getFullYear()}
           </Typography>
-          <Box sx={{ height: "2.5px", width: "100%", backgroundColor: "#1976d2", borderRadius: 1, mt: 2, mb: 4 }} />
+          <Box
+            sx={{
+              height: "2.5px",
+              width: "100%",
+              backgroundColor: "#1976d2",
+              borderRadius: 1,
+              mt: 2,
+              mb: 4,
+            }}
+          />
         </Box>
 
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" flexWrap="wrap" sx={{ mb: 4 }}>
+        <Stack
+          direction="row"
+          spacing={2}
+          alignItems="center"
+          justifyContent="center"
+          flexWrap="wrap"
+          sx={{ mb: 4 }}
+        >
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
             <DatePicker
               label="Chọn năm"
@@ -267,24 +299,31 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
                 textField: {
                   size: "small",
                   sx: {
-                    minWidth: 100, maxWidth: 145,
-                    "& input": { textAlign: "center" }
-                  }
-                }
+                    minWidth: 100,
+                    maxWidth: 145,
+                    "& input": { textAlign: "center" },
+                  },
+                },
               }}
             />
           </LocalizationProvider>
 
           <FormControl size="small" sx={{ minWidth: 80, maxWidth: 100 }}>
             <InputLabel>Lớp</InputLabel>
-            <Select value={selectedClass} label="Lớp" onChange={(e) => setSelectedClass(e.target.value)}>
+            <Select
+              value={selectedClass}
+              label="Lớp"
+              onChange={(e) => setSelectedClass(e.target.value)}
+            >
               {classList.map((cls, idx) => (
-                <MenuItem key={idx} value={cls}>{cls}</MenuItem>
+                <MenuItem key={idx} value={cls}>
+                  {cls}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
 
-          <Button variant="outlined" onClick={() => setShowMonths(prev => !prev)}>
+          <Button variant="outlined" onClick={() => setShowMonths((prev) => !prev)}>
             {showMonths ? "ẨN THÁNG" : "HIỆN THÁNG"}
           </Button>
 
@@ -306,34 +345,59 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
             <Table size="small" sx={{ borderCollapse: "collapse" }}>
               <TableHead>
                 <TableRow sx={{ height: 48 }}>
-                  <TableCell align="center" rowSpan={2} sx={{
-                    ...headCellStyle,
-                    ...(isMobile && { position: "sticky", left: 0, zIndex: 3, backgroundColor: "#1976d2" })
-                  }}>
+                  <TableCell
+                    align="center"
+                    rowSpan={2}
+                    sx={{
+                      ...headCellStyle,
+                      ...(isMobile && {
+                        position: "sticky",
+                        left: 0,
+                        zIndex: 3,
+                        backgroundColor: "#1976d2",
+                      }),
+                    }}
+                  >
                     STT
                   </TableCell>
-                  <TableCell align="center" rowSpan={2} sx={{
-                    ...headCellStyle,
-                    minWidth: 140,
-                    ...(isMobile && { position: "sticky", left: 60, zIndex: 3, backgroundColor: "#1976d2" })
-                  }}>
+                  <TableCell
+                    align="center"
+                    rowSpan={2}
+                    sx={{
+                      ...headCellStyle,
+                      minWidth: 140,
+                      ...(isMobile && {
+                        position: "sticky",
+                        left: 60,
+                        zIndex: 3,
+                        backgroundColor: "#1976d2",
+                      }),
+                    }}
+                  >
                     HỌ VÀ TÊN
                   </TableCell>
 
-                  {showMonths && monthSet.map((m) => (
-                    <TableCell key={m} align="center" colSpan={2} sx={{ ...headCellStyle, minWidth: 60 }}>
-                      Tháng {m}
-                    </TableCell>
-                  ))}
-                  <TableCell align="center" rowSpan={2} sx={{ ...headCellStyle, width: 80 }}>TỔNG CỘNG</TableCell>
+                  {showMonths &&
+                    monthSet.map((m) => (
+                      <TableCell key={m} align="center" colSpan={2} sx={{ ...headCellStyle, minWidth: 60 }}>
+                        Tháng {m}
+                      </TableCell>
+                    ))}
+                  <TableCell align="center" rowSpan={2} sx={{ ...headCellStyle, width: 80 }}>
+                    TỔNG CỘNG
+                  </TableCell>
                 </TableRow>
 
                 {showMonths && (
                   <TableRow>
                     {monthSet.map((m) => (
                       <React.Fragment key={m}>
-                        <TableCell align="center" sx={headCellStyle}>P</TableCell>
-                        <TableCell align="center" sx={headCellStyle}>K</TableCell>
+                        <TableCell align="center" sx={headCellStyle}>
+                          P
+                        </TableCell>
+                        <TableCell align="center" sx={headCellStyle}>
+                          K
+                        </TableCell>
                       </React.Fragment>
                     ))}
                   </TableRow>
@@ -341,48 +405,75 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
               </TableHead>
 
               <TableBody>
-                {dataList.map((student) => (
-                  <TableRow key={student.id} sx={{
-                    height: 44,
-                    "& td": { border: "1px solid #ccc", py: 1 }
-                  }}>
-                    <TableCell align="center" sx={{
-                      width: 48,
-                      px: 1,
-                      ...(isMobile && {
-                        //position: "sticky", left: 0, backgroundColor: "#fff", zIndex: 2
-                        position: "sticky", left: 0, zIndex: 2
-                      })
-                    }}>
-                      {student.stt}
-                    </TableCell>
-                    <TableCell sx={{
-                      minWidth: 180,
-                      px: 1,
-                      ...(isMobile && {
-                        //position: "sticky", left: 60, backgroundColor: "#fff", zIndex: 2
-                        position: "sticky", left: 60, zIndex: 2
-                      })
-                    }}>
-                      {student.hoVaTen}
-                    </TableCell>
+                {dataList.map((student) => {
+                  const isHovered = hoveredRowId === student.id;
+                  const isSelected = selectedRowId === student.id;
+                  const bgColor = isSelected ? "#e3f2fd" : isHovered ? "#f5f5f5" : "inherit";
+                  const stickyBg = isSelected || isHovered ? bgColor : "#fff";
 
-                    {showMonths && monthSet.map((m) => (
-                      <React.Fragment key={m}>
-                        <TableCell align="center" sx={{ minWidth: 15, px: 0 }}>
-                          {student.monthSummary?.[m]?.P > 0 ? student.monthSummary[m].P : ""}
-                        </TableCell>
-                        <TableCell align="center" sx={{ minWidth: 15, px: 0 }}>
-                          {student.monthSummary?.[m]?.K > 0 ? student.monthSummary[m].K : ""}
-                        </TableCell>
-                      </React.Fragment>
-                    ))}
+                  return (
+                    <TableRow
+                      key={student.id}
+                      onMouseEnter={() => setHoveredRowId(student.id)}
+                      onMouseLeave={() => setHoveredRowId(null)}
+                      onClick={() =>
+                        setSelectedRowId((prev) => (prev === student.id ? null : student.id))
+                      }
+                      sx={{
+                        height: 44,
+                        cursor: "pointer",
+                        backgroundColor: bgColor,
+                        transition: "background-color 0.2s ease",
+                        "& td": { border: "1px solid #ccc", py: 1 },
+                      }}
+                    >
+                      <TableCell
+                        align="center"
+                        sx={{
+                          width: 48,
+                          px: 1,
+                          position: isMobile ? "sticky" : "static",
+                          left: 0,
+                          zIndex: 2,
+                          backgroundColor: stickyBg,
+                          transition: "background-color 0.2s ease",
+                        }}
+                      >
+                        {student.stt}
+                      </TableCell>
 
-                    <TableCell align="center" sx={{ width: 80, px: 1 }}>
-                      {student.total > 0 ? student.total : ""}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell
+                        sx={{
+                          minWidth: 180,
+                          px: 1,
+                          position: isMobile ? "sticky" : "static",
+                          left: 60,
+                          zIndex: 2,
+                          backgroundColor: stickyBg,
+                          transition: "background-color 0.2s ease",
+                        }}
+                      >
+                        {student.hoVaTen}
+                      </TableCell>
+
+                      {showMonths &&
+                        monthSet.map((m) => (
+                          <React.Fragment key={m}>
+                            <TableCell align="center" sx={{ minWidth: 15, px: 0 }}>
+                              {student.monthSummary?.[m]?.P > 0 ? student.monthSummary[m].P : ""}
+                            </TableCell>
+                            <TableCell align="center" sx={{ minWidth: 15, px: 0 }}>
+                              {student.monthSummary?.[m]?.K > 0 ? student.monthSummary[m].K : ""}
+                            </TableCell>
+                          </React.Fragment>
+                        ))}
+
+                      <TableCell align="center" sx={{ width: 80, px: 1 }}>
+                        {student.total > 0 ? student.total : ""}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -397,9 +488,9 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
               fullWidth
               sx={{
                 maxWidth: { xs: 150, sm: 280 },
-                fontSize: { xs: '13px', sm: '15px' },
+                fontSize: { xs: "13px", sm: "15px" },
                 height: { xs: 38, sm: 44 },
-                fontWeight: 'bold',
+                fontWeight: "bold",
                 px: { xs: 1, sm: 2 },
               }}
             >
@@ -416,6 +507,7 @@ export default function ThongKeNam_DiemDanh({ onBack }) {
       </Paper>
     </Box>
   );
+
 }
 
 

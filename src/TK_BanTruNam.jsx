@@ -203,175 +203,201 @@ export default function ThongKeNam({ onBack }) {
     exportBanTruNam(dataList, selectedDate.getFullYear(), selectedClass, monthSet);
   };
 
-  return (
-    <Box sx={{ width: "100%", overflowX: "auto", mt: 2, px: 1 }}>
-      <Paper elevation={3} sx={{
-        p: 4,
-        borderRadius: showMonths ? 0 : 4,
-        mx: "auto",
-        overflowX: "auto",
-        ...(showMonths
-          ? {
-              position: "fixed",
-              top: 0, left: 0, right: 0, bottom: 0,
-              zIndex: 1300, backgroundColor: "white", overflow: "auto"
-            }
-          : {
-              width: "max-content"
-            }),
-      }}>
-        <Box sx={{ mb: 5 }}>
-          <Typography variant="h5" fontWeight="bold" color="primary" align="center" sx={{ mb: 1 }}>
-            BÁN TRÚ NĂM {selectedDate.getFullYear()}
-          </Typography>
-          <Box sx={{ height: "2.5px", width: "100%", backgroundColor: "#1976d2", borderRadius: 1, mt: 2, mb: 4 }} />
-        </Box>
+  const [selectedRowId, setSelectedRowId] = useState(null);
 
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" flexWrap="wrap" sx={{ mb: 4 }}>
-          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
-            <DatePicker
-              label="Chọn năm"
-              views={["year"]}
-              openTo="year"
-              value={selectedDate}
-              onChange={(newValue) => {
-                if (newValue instanceof Date && !isNaN(newValue)) {
-                  setSelectedDate(newValue);
+return (
+  <Box sx={{ width: "100%", overflowX: "auto", mt: 2, px: 1 }}>
+    <Paper elevation={3} sx={{
+      p: 4,
+      borderRadius: showMonths ? 0 : 4,
+      mx: "auto",
+      overflowX: "auto",
+      ...(showMonths
+        ? {
+            position: "fixed",
+            top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 1300, backgroundColor: "white", overflow: "auto"
+          }
+        : {
+            width: "max-content"
+          }),
+    }}>
+      <Box sx={{ mb: 5 }}>
+        <Typography variant="h5" fontWeight="bold" color="primary" align="center" sx={{ mb: 1 }}>
+          BÁN TRÚ NĂM {selectedDate.getFullYear()}
+        </Typography>
+        <Box sx={{ height: "2.5px", width: "100%", backgroundColor: "#1976d2", borderRadius: 1, mt: 2, mb: 4 }} />
+      </Box>
+
+      <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" flexWrap="wrap" sx={{ mb: 4 }}>
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={vi}>
+          <DatePicker
+            label="Chọn năm"
+            views={["year"]}
+            openTo="year"
+            value={selectedDate}
+            onChange={(newValue) => {
+              if (newValue instanceof Date && !isNaN(newValue)) {
+                setSelectedDate(newValue);
+              }
+            }}
+            slotProps={{
+              textField: {
+                size: "small",
+                sx: {
+                  minWidth: 100, maxWidth: 145,
+                  "& input": { textAlign: "center" }
                 }
-              }}
-              slotProps={{
-                textField: {
-                  size: "small",
-                  sx: {
-                    minWidth: 100, maxWidth: 145,
-                    "& input": { textAlign: "center" }
-                  }
-                }
-              }}
-            />
-          </LocalizationProvider>
+              }
+            }}
+          />
+        </LocalizationProvider>
 
-          <FormControl size="small" sx={{ minWidth: 80, maxWidth: 100 }}>
-            <InputLabel>Lớp</InputLabel>
-            <Select value={selectedClass} label="Lớp" onChange={(e) => setSelectedClass(e.target.value)}>
-              {classList.map((cls, idx) => (
-                <MenuItem key={idx} value={cls}>{cls}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <FormControl size="small" sx={{ minWidth: 80, maxWidth: 100 }}>
+          <InputLabel>Lớp</InputLabel>
+          <Select value={selectedClass} label="Lớp" onChange={(e) => setSelectedClass(e.target.value)}>
+            {classList.map((cls, idx) => (
+              <MenuItem key={idx} value={cls}>{cls}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
-          <Button variant="outlined" onClick={() => setShowMonths(prev => !prev)}>
-            {showMonths ? "ẨN THÁNG" : "HIỆN THÁNG"}
+        <Button variant="outlined" onClick={() => setShowMonths(prev => !prev)}>
+          {showMonths ? "ẨN THÁNG" : "HIỆN THÁNG"}
+        </Button>
+
+        {!isMobile && (
+          <Button variant="contained" color="success" onClick={handleExport}>
+            📅 Xuất Excel
           </Button>
-
-          {!isMobile && (
-            <Button variant="contained" color="success" onClick={handleExport}>
-              📅 Xuất Excel
-            </Button>
-          )}
-        </Stack>
-
-        {isLoading && (
-          <Box sx={{ width: "50%", mx: "auto", my: 2 }}>
-            <LinearProgress />
-          </Box>
         )}
+      </Stack>
 
-        <Box sx={{ width: "100%", overflowX: "auto", mt: 2 }}>
-          <TableContainer component={Paper} sx={{ borderRadius: 2, minWidth: "max-content" }}>
-            <Table size="small" sx={{ borderCollapse: "collapse" }}>
-              <TableHead>
-                <TableRow sx={{ height: 48 }}>
-                  <TableCell align="center" sx={{
-                    ...headCellStyle,
-                    ...(isMobile && { position: "sticky", left: 0, zIndex: 3, backgroundColor: "#1976d2" })
-                  }}>
-                    STT
+      {isLoading && (
+        <Box sx={{ width: "50%", mx: "auto", my: 2 }}>
+          <LinearProgress />
+        </Box>
+      )}
+
+      <Box sx={{ width: "100%", overflowX: "auto", mt: 2 }}>
+        <TableContainer component={Paper} sx={{ borderRadius: 2, minWidth: "max-content" }}>
+          <Table size="small" sx={{ borderCollapse: "collapse" }}>
+            <TableHead>
+              <TableRow sx={{ height: 48 }}>
+                <TableCell align="center" sx={{
+                  ...headCellStyle,
+                  ...(isMobile && { position: "sticky", left: 0, zIndex: 3, backgroundColor: "#1976d2" })
+                }}>
+                  STT
+                </TableCell>
+                <TableCell align="center" sx={{
+                  ...headCellStyle,
+                  minWidth: 140,
+                  ...(isMobile && { position: "sticky", left: 60, zIndex: 3, backgroundColor: "#1976d2" })
+                }}>
+                  HỌ VÀ TÊN
+                </TableCell>
+
+                {showMonths && monthSet.map((m) => (
+                  <TableCell key={m} align="center" sx={{ ...headCellStyle, minWidth: 30, px: 0.5 }}>
+                    Tháng {m}
                   </TableCell>
+                ))}
+                <TableCell align="center" sx={{ ...headCellStyle, width: 80 }}>TỔNG CỘNG</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {dataList.map((student) => (
+                <TableRow
+                  key={student.id}
+                  onClick={() =>
+                    setSelectedRowId(prev => prev === student.id ? null : student.id)
+                  }
+                  sx={{
+                    height: 44,
+                    backgroundColor:
+                      student.id === selectedRowId
+                        ? "#e3f2fd"
+                        : student.dangKyBanTru === false
+                        ? "#f0f0f0"
+                        : "inherit",
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor:
+                        student.id === selectedRowId ? "#e3f2fd" : "#f5f5f5",
+                    },
+                    "& td": { border: "1px solid #ccc", py: 1 }
+                  }}
+                >
                   <TableCell align="center" sx={{
-                    ...headCellStyle,
-                    minWidth: 140,
-                    ...(isMobile && { position: "sticky", left: 60, zIndex: 3, backgroundColor: "#1976d2" })
+                    width: 48,
+                    px: 1,
+                    ...(isMobile && {
+                      position: "sticky",
+                      left: 0,
+                      backgroundColor: student.id === selectedRowId ? "#e3f2fd" : "#fff",
+                      zIndex: 2
+                    })
                   }}>
-                    HỌ VÀ TÊN
+                    {student.stt}
                   </TableCell>
+                  <TableCell sx={{
+                    minWidth: 180,
+                    px: 1,
+                    ...(isMobile && {
+                      position: "sticky",
+                      left: 60,
+                      backgroundColor: student.id === selectedRowId ? "#e3f2fd" : "#fff",
+                      zIndex: 2
+                    })
+                  }}>
+                    {student.hoVaTen}
+                  </TableCell>
+
 
                   {showMonths && monthSet.map((m) => (
-                    <TableCell key={m} align="center" sx={{ ...headCellStyle, minWidth: 30, px: 0.5 }}>
-                      Tháng {m}
+                    <TableCell key={`${student.id}-${m}`} align="center" sx={{ minWidth: 30, px: 0.5 }}>
+                      {student.monthSummary[m] > 0 ? student.monthSummary[m] : ""}
                     </TableCell>
                   ))}
-                  <TableCell align="center" sx={{ ...headCellStyle, width: 80 }}>TỔNG CỘNG</TableCell>
+
+                  <TableCell align="center" sx={{ width: 80, px: 1 }}>
+                    {student.total > 0 ? student.total : ""}
+                  </TableCell>
                 </TableRow>
-              </TableHead>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
 
-              <TableBody>
-                {dataList.map((student) => (
-                  <TableRow key={student.id} sx={{
-                    height: 44,
-                    backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "inherit", "& td": { border: "1px solid #ccc", py: 1 }
-                  }}>
-                    <TableCell align="center" sx={{
-                      width: 48,
-                      px: 1,
-                      ...(isMobile && {
-                        position: "sticky", left: 0, backgroundColor: "#fff", zIndex: 2
-                      })
-                    }}>
-                      {student.stt}
-                    </TableCell>
-                    <TableCell sx={{
-                      minWidth: 180,
-                      px: 1,
-                      ...(isMobile && {
-                        position: "sticky", left: 60, backgroundColor: "#fff", zIndex: 2
-                      })
-                    }}>
-                      {student.hoVaTen}
-                    </TableCell>
-
-                    {showMonths && monthSet.map((m) => (
-                      <TableCell key={`${student.id}-${m}`} align="center" sx={{ minWidth: 30, px: 0.5 }}>
-                        {student.monthSummary[m] > 0 ? student.monthSummary[m] : ""}
-                      </TableCell>
-                    ))}
-
-                    <TableCell align="center" sx={{ width: 80, px: 1 }}>
-                      {student.total > 0 ? student.total : ""}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-
-        {isMobile && (
-          <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handleExport}
-              fullWidth
-              sx={{
-                maxWidth: { xs: 150, sm: 280 },
-                fontSize: { xs: '13px', sm: '15px' },
-                height: { xs: 38, sm: 44 },
-                fontWeight: 'bold',
-                px: { xs: 1, sm: 2 },
-              }}
-            >
-              📥 Xuất Excel
-            </Button>
-          </Box>
-        )}
-
-        <Stack spacing={2} sx={{ mt: 4, alignItems: "center" }}>
-          <Button onClick={onBack} color="secondary">
-            ⬅️ Quay lại
+      {isMobile && (
+        <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleExport}
+            fullWidth
+            sx={{
+              maxWidth: { xs: 150, sm: 280 },
+              fontSize: { xs: '13px', sm: '15px' },
+              height: { xs: 38, sm: 44 },
+              fontWeight: 'bold',
+              px: { xs: 1, sm: 2 },
+            }}
+          >
+            📥 Xuất Excel
           </Button>
-        </Stack>
-      </Paper>
-    </Box>
-  );
+        </Box>
+      )}
+
+      <Stack spacing={2} sx={{ mt: 4, alignItems: "center" }}>
+        <Button onClick={onBack} color="secondary">
+          ⬅️ Quay lại
+        </Button>
+      </Stack>
+    </Paper>
+  </Box>
+);
 }

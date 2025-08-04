@@ -34,6 +34,8 @@ export default function ThongKeThang({ onBack }) {
   const { getClassList, setClassListForKhoi } = useClassList();
   const { getClassData, setClassData } = useClassData();
   const [fetchedClasses, setFetchedClasses] = useState({});
+  const [selectedRowId, setSelectedRowId] = useState(null);
+  const [hoveredRowId, setHoveredRowId] = useState(null);
 
   // Load danh sách lớp khi mount
   useEffect(() => {
@@ -312,15 +314,23 @@ export default function ThongKeThang({ onBack }) {
                 <TableCell align="center" sx={{ ...headCellStyle, position: "sticky", left: 0, zIndex: 2 }}>
                   STT
                 </TableCell>
-                <TableCell align="center" sx={{ ...headCellStyle, minWidth: 140, position: "sticky", left: 48, zIndex: 2 }}>
+                <TableCell
+                  align="center"
+                  sx={{
+                    ...headCellStyle,
+                    whiteSpace: "nowrap",
+                    width: "auto",
+                    px: 1,
+                  }}
+                >
                   HỌ VÀ TÊN
                 </TableCell>
+
                 {showDays &&
                   daySet.map((d) => {
                     const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), d);
                     const dayOfWeek = date.getDay();
-                    let bgColor = "#1976d2",
-                      textColor = "white";
+                    let bgColor = "#1976d2", textColor = "white";
                     if (dayOfWeek === 0) {
                       bgColor = "#ffcdd2";
                       textColor = "#c62828";
@@ -352,55 +362,99 @@ export default function ThongKeThang({ onBack }) {
             </TableHead>
 
             <TableBody>
-              {dataList.map((student) => (
-                <TableRow
-                  key={student.id}
-                  sx={{
-                    height: 48,
-                    backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "inherit", "& td": { border: "1px solid #ccc", py: 1 },
-                  }}
-                >
-                  <TableCell
-                    align="center"
+              {dataList.map((student) => {
+                const isSelected = student.id === selectedRowId;
+                const baseColor = student.dangKyBanTru === false ? "#f0f0f0" : isSelected ? "#e3f2fd" : "inherit";
+                const stickyColor = student.dangKyBanTru === false ? "#f0f0f0" : isSelected ? "#e3f2fd" : "#fff";
+
+                return (
+                  <TableRow
+                    key={student.id}
+                    onClick={() => setSelectedRowId((prev) => (prev === student.id ? null : student.id))}
+                    onMouseEnter={() => setHoveredRowId(student.id)}
+                    onMouseLeave={() => setHoveredRowId(null)}
                     sx={{
-                      width: 48,
-                      px: 1,
-                      position: "sticky",
-                      left: 0,
-                      backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "#fff",
-                      zIndex: 1,
+                      height: 48,
+                      cursor: "pointer",
+                      backgroundColor:
+                        student.dangKyBanTru === false
+                          ? "#f0f0f0"
+                          : student.id === selectedRowId
+                          ? "#e3f2fd"
+                          : hoveredRowId === student.id
+                          ? "#f5f5f5"
+                          : "inherit",
+                      "& td": { border: "1px solid #ccc", py: 1 },
                     }}
                   >
-                    {student.stt}
-                  </TableCell>
 
-                  <TableCell
-                    sx={{
-                      minWidth: 140,
-                      px: 1,
-                      position: "sticky",
-                      left: 48,
-                      backgroundColor: student.dangKyBanTru === false ? "#f0f0f0" : "#fff",
-                      zIndex: 1,
-                    }}
-                  >
-                    {student.hoVaTen}
-                  </TableCell>
 
-                  {showDays &&
-                    daySet.map((d) => (
-                      <TableCell key={d} align="center" sx={{ color: student.daySummary[d] ? "#1976d2" : "inherit", px: 1 }}>
-                        {student.daySummary[d] || ""}
-                      </TableCell>
-                    ))}
-                  <TableCell align="center" sx={{px: 1 }}>
-                    {student.total > 0 ? student.total : ""}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    <TableCell
+                      align="center"
+                      sx={{
+                        width: 48,
+                        px: 1,
+                        position: "sticky",
+                        left: 0,
+                        backgroundColor:
+                          student.dangKyBanTru === false
+                            ? "#f0f0f0"
+                            : student.id === selectedRowId
+                            ? "#e3f2fd"
+                            : hoveredRowId === student.id
+                            ? "#f5f5f5"
+                            : "#fff",
+                        zIndex: 1,
+                      }}
+                    >
+                      {student.stt}
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        px: 1,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        width: "auto",
+                        backgroundColor:
+                          student.dangKyBanTru === false
+                            ? "#f0f0f0"
+                            : student.id === selectedRowId
+                            ? "#e3f2fd"
+                            : hoveredRowId === student.id
+                            ? "#f5f5f5"
+                            : "#fff",
+                      }}
+                    >
+                      {student.hoVaTen}
+                    </TableCell>
+
+
+                    {showDays &&
+                      daySet.map((d) => (
+                        <TableCell
+                          key={d}
+                          align="center"
+                          sx={{
+                            color: student.daySummary[d] ? "#1976d2" : "inherit",
+                            px: 1,
+                          }}
+                        >
+                          {student.daySummary[d] || ""}
+                        </TableCell>
+                      ))}
+
+                    <TableCell align="center" sx={{ px: 1 }}>
+                      {student.total > 0 ? student.total : ""}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
+
 
         {isMobile && (
           <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>

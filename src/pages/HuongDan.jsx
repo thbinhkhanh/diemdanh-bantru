@@ -75,7 +75,7 @@ export default function HuongDan() {
     >
       <Container
         sx={{
-          mt: { xs: '64px', sm: '70px' },
+          mt: { xs: '10px', sm: '10px' },
           width: { xs: "98%", sm: "90%", md: "850px" },
         }}
       >
