@@ -113,20 +113,14 @@ export default function HuongDan() {
       <Card elevation={3} sx={{ borderRadius: 3, p: 2 }}>
         <CardContent>
           <Typography
-            variant="h6"
-            color="primary"
-            fontWeight="bold"
-            align="center"
-            sx={{
-              mb: 2,
-              fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
-            }}
-          >
-            ỨNG DỤNG QUẢN LÝ BÁN TRÚ
-          </Typography>
-
+              variant="h5"
+              align="center"
+              fontWeight="bold"
+              sx={{ mt: 0, mb: 2, color: "#1976d2" }}
+            >
+              QUẢN LÝ BÁN TRÚ - ĐIỂM DANH
+            </Typography>          
           <Divider sx={{ my: 2 }} />
-
           <div>
               {renderItem("1", "📝 0. Tài khoản", (
                 <GroupDetails

@@ -67,7 +67,7 @@ export default function About() {
               fontWeight="bold"
               sx={{ mt: 0, mb: 2, color: "#1976d2" }}
             >
-              ỨNG DỤNG QUẢN LÝ BÁN TRÚ - ĐIỂM DANH
+              QUẢN LÝ BÁN TRÚ - ĐIỂM DANH
             </Typography>
 
             <Divider sx={{ my: 2 }} />
