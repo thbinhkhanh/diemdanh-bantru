@@ -128,68 +128,111 @@ export default function HuongDan() {
           <Divider sx={{ my: 2 }} />
 
           <div>
-            {renderItem("1", "📝 1. Điểm danh", (
-              <GroupDetails
-                groupKey="group-1"
-                items={[
-                  {
-                    title: "✅ 1.1 Điểm danh bán trú",
-                    content: (
-                      <ul>
-                        <li>
-                          B1: Tại Trang chủ, chọn biểu tượng Khối hoặc chọn Khối từ thanh menu.<br /><br />
-                          <img src="/images/H01_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /><br />
-                        </li>
-                        <li>
-                          B2: <b>Đăng nhập:</b> Chọn lớp, nhập mật khẩu rồi chọn <b>Đăng nhập</b><br /><br />
-                          <img src="/images/H01_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /><br />
-                        </li>
-                        <li>
-                          B3: Chọn <b>Bán trú, </b>hệ thống hiển thị danh sách học sinh bán trú.<br /><br />
-                          <img src="/images/H01_B3.png" alt="B3" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /><br />
-                        </li>
-                        <li>B4: Tick học sinh để đánh dấu có ăn bán trú.</li>
-                        <li>👉 Mọi thay đổi được tự động lưu.</li>
-                      </ul>
-                    )
-                  },
-                  {
-                    title: "🏫 1.2 Điểm danh chuyên cần",
-                    content: (
-                      <ul>
-                        <li>B1: Chọn <b>Điểm danh</b><br /><br /><img src="/images/H02_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
-                        <li>B2: Tick học sinh để đánh dấu nghỉ học, chọn có phép/không phép, nhập lý do nghỉ.<br /> </li>
-                        <li>👉 Mọi thay đổi được tự động lưu.</li>
-                      </ul>
-                    )
-                  },
-                  {
-                    title: "🏫 1.3 Nhật ký điểm danh",
-                    content: (
-                      <ul>
-                        <li>B1: Chọn <b>Nhật ký điểm danh</b><br /><br/><img src="/images/H03_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
-                        <li>B2: Tại đây, có thể xem lại học sinh đã vắng trong ngày, trong tháng.<br /><br /><img src="/images/H03_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li>
-                      </ul>
-                    )
-                  },
-                  {
-                    title: "🏫 1.4 Chuyển đổi tài khoản",
-                    content: (
-                      <ul>
-                        <li> Để điểm danh thay cho lớp bất kỳ, có thể thực hiện như sau:</li>
-                        <br />
-                        <li> B1: Chọn biểu tượng <b>chuyển đổi tài khoản</b> <br/><br /><img src="/images/H04_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
-                        <li> B2: Chọn <b>Khối</b>, <b>Lớp</b> muốn điểm danh thay, nhập mật khẩu rồi bấm <b>Đăng nhập</b><br /><br /><img src="/images/H04_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
-                        <li> B3: Điểm danh bình thường<br /><br /><img src="/images/H04_B3.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li>
-                      </ul>
-                    )
-                  },
-                ]}
-              />
-            ))}
+              {renderItem("1", "📝 0. Tài khoản", (
+                <GroupDetails
+                  groupKey="group-0"
+                  items={[
+                    {
+                      title: "✅ 0.1 Đăn nhập",
+                      content: (
+                        <ul>
+                          <li>
+                            B1: Tại màn hình Đăng nhập, chọn lớp, nhập mật khẩu.<br /><br />
+                            <img src="/images/H01_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /><br />
+                          </li>
+                          <li>B2: Chọn <b>Đăng nhập</b>.</li>
+                          <li>👉 Thao tác đăng nhập: chỉ thực hiện một lần duy nhất khi lần đầu mở ứng dụng.</li><br />
+                          <li>Màn hinh đăng nhập thành công.<br /><br /><img src="/images/H01_B3.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /><br /></li>
+                        </ul>
+                      )
+                    },
+                    {
+                      title: "🏫 0.2 Chuyển đổi tài khoản",
+                      content: (
+                        <ul>
+                          <li> Muốn chuyển sang tài khoản khác, có thể thực hiện như sau:</li>
+                          <br />
+                          <li> B1: Chọn biểu tượng <b>chuyển đổi tài khoản</b> <br/><br /><img src="/images/H04_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
+                          <li> B2: Chọn <b>Khối</b>, <b>Lớp</b> muốn điểm danh thay, nhập mật khẩu rồi bấm <b>Đăng nhập</b><br /><br /><img src="/images/H04_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
+                          <li> B3: Đã chuyển sang tài khoản lớp 2.2<br /><br /><img src="/images/H04_B3.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li>
+                        </ul>
+                      )
+                    },
+                    {
+                      title: "🏫 0.3 Đăng xuất",
+                      content: (
+                        <ul>
+                          <li>B1: Chọn <b>Tài khoản</b></li>
+                          <li>B2: Chọn <b>Đăng xuất</b><br /><br /><img src="/images/H02_B1b.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />                          
+                          <li>👉 Muốn duy trì trạng thái đăng nhập thì không nên đăng xuất.</li>
+                        </ul>
+                      )
+                    },
+                    {
+                      title: "🏫 0.4 Đổi mật khẩu",
+                      content: (
+                        <ul>
+                          <li>👉 Để bảo mật thông nhân học sinh, thầy cô nên đổi mật khẩu tài khoản.</li>
+                          <li>B1: Chọn <b>Tài khoản</b></li>
+                          <li>B2: Chọn <b>Đổi mật khẩu</b><br /><br/><img src="/images/H02_B1c.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
+                          <li>B3: Nhập mật khẩu cũ, mật khẩu mới, xác nhận mật khẩu.<br /><br/><img src="/images/H03_B1b.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
+                          <li>B4: Chọn <b>Cập nhật</b>.</li>
+                        </ul>
+                      )
+                    },                  
+                  ]}
+                />
+              ))}
 
+              {renderItem("2", "📝 1. Điểm danh", (
+                <GroupDetails
+                  groupKey="group-1"
+                  items={[
+                    {
+                      title: "✅ 1.1 Điểm danh bán trú",
+                      content: (
+                        <ul>
+                          <li>
+                            B1: Tại <b>Trang chủ</b>, chọn biểu tượng Khối hoặc chọn Khối từ thanh menu.<br /><br />
+                            <img src="/images/H01_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /><br />
+                          </li>
+                          <li>
+                            B2: <b>Đăng nhập:</b> Chọn lớp, nhập mật khẩu rồi chọn <b>Đăng nhập</b><br /><br />
+                            <img src="/images/H01_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /><br />
+                          </li>
+                          <li>
+                            B3: Chọn <b>Bán trú, </b>hệ thống hiển thị danh sách học sinh bán trú.<br /><br />
+                            <img src="/images/H01_B3.png" alt="B3" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /><br />
+                          </li>
+                          <li>B4: Tick học sinh để đánh dấu có ăn bán trú.</li>
+                          <li>👉 Mọi thay đổi được tự động lưu.</li>
+                        </ul>
+                      )
+                    },
+                    {
+                      title: "🏫 1.2 Điểm danh chuyên cần",
+                      content: (
+                        <ul>
+                          <li>B1: Chọn <b>Điểm danh</b><br /><br /><img src="/images/H02_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
+                          <li>B2: Tick học sinh để đánh dấu nghỉ học, chọn có phép/không phép, nhập lý do nghỉ.<br /> </li>
+                          <li>👉 Mọi thay đổi được tự động lưu.</li>
+                        </ul>
+                      )
+                    },
+                    {
+                      title: "🏫 1.3 Nhật ký điểm danh",
+                      content: (
+                        <ul>
+                          <li>B1: Chọn <b>Nhật ký điểm danh</b><br /><br/><img src="/images/H03_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
+                          <li>B2: Tại đây, có thể xem lại học sinh đã vắng trong ngày, trong tháng.<br /><br /><img src="/images/H03_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li>
+                        </ul>
+                      )
+                    },                  
+                  ]}
+                />
+              ))}
 
-              {renderItem("2", "🗓️ 2. Quản lý dữ liệu ngày", (
+              {renderItem("3", "🗓️ 2. Quản lý dữ liệu ngày", (
                 <GroupDetails
                   groupKey="group-2"
                   items={[
@@ -245,7 +288,7 @@ export default function HuongDan() {
                 />
               ))}
 
-              {renderItem("3", "📈 3. Thống kê", (
+              {renderItem("4", "📈 3. Thống kê", (
                 <GroupDetails
                   groupKey="group-3"
                   items={[
@@ -289,7 +332,7 @@ export default function HuongDan() {
                 />
               ))}
 
-              {renderItem("4", "👥 4. Danh sách học sinh", (
+              {renderItem("5", "👥 4. Danh sách học sinh", (
                 <GroupDetails
                   groupKey="group-4"
                   items={[
@@ -346,7 +389,7 @@ export default function HuongDan() {
                 />
               ))}
 
-              {renderItem("5", "🗄️ 5. Cơ sở dữ liệu", (
+              {renderItem("6", "🗄️ 5. Cơ sở dữ liệu", (
                 <GroupDetails
                   groupKey="group-5"
                   items={[
