@@ -148,7 +148,7 @@ export default function HuongDan() {
                           <li> Muốn chuyển sang tài khoản khác, có thể thực hiện như sau:</li>
                           <br />
                           <li> B1: Chọn biểu tượng <b>chuyển đổi tài khoản</b> <br/><br /><img src="/images/H04_B1.png" alt="B1" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
-                          <li> B2: Chọn <b>Khối</b>, <b>Lớp</b> muốn điểm danh thay, nhập mật khẩu rồi bấm <b>Đăng nhập</b><br /><br /><img src="/images/H04_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
+                          <li> B2: Chọn <b>Khối</b>, <b>Lớp</b> muốn chuyển đổi, nhập mật khẩu rồi bấm <b>Đăng nhập</b><br /><br /><img src="/images/H04_B2.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li><br />
                           <li> B3: Đã chuyển sang tài khoản lớp 2.2<br /><br /><img src="/images/H04_B3.png" alt="B2" style={{ width: "100%", maxWidth: "480px", height: "auto", display: "block", margin: "0 auto" }} /></li>
                         </ul>
                       )
@@ -457,7 +457,7 @@ export default function HuongDan() {
 
             </div>
 
-            <Box sx={{ mt: 3, textAlign: "center" }}>
+            <Box sx={{ mt: 4, textAlign: "center" }}>
               <Button
                 variant="contained"
                 color="primary"
