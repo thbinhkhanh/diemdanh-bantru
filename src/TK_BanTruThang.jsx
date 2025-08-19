@@ -311,9 +311,10 @@ export default function ThongKeThang({ onBack }) {
           <Table size="small" sx={{ borderCollapse: "collapse" }}>
             <TableHead>
               <TableRow sx={{ height: 48 }}>
-                <TableCell align="center" sx={{ ...headCellStyle, position: "sticky", left: 0, zIndex: 2 }}>
+                <TableCell align="center" sx={{ ...headCellStyle }}>
                   STT
                 </TableCell>
+
                 <TableCell
                   align="center"
                   sx={{
@@ -387,15 +388,11 @@ export default function ThongKeThang({ onBack }) {
                       "& td": { border: "1px solid #ccc", py: 1 },
                     }}
                   >
-
-
                     <TableCell
                       align="center"
                       sx={{
                         width: 48,
                         px: 1,
-                        position: "sticky",
-                        left: 0,
                         backgroundColor:
                           student.dangKyBanTru === false
                             ? "#f0f0f0"
@@ -404,11 +401,11 @@ export default function ThongKeThang({ onBack }) {
                             : hoveredRowId === student.id
                             ? "#f5f5f5"
                             : "#fff",
-                        zIndex: 1,
                       }}
                     >
                       {student.stt}
                     </TableCell>
+
 
                     <TableCell
                       sx={{
@@ -461,7 +458,17 @@ export default function ThongKeThang({ onBack }) {
             <Button
               variant="contained"
               color="success"
-              onClick={handleExport}
+              onClick={async () => {
+                // Kiểm tra thiết bị di động
+                const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                  alert("❌ Chức năng xuất Excel không khả dụng trên điện thoại.\nVui lòng sử dụng máy tính để xuất file.");
+                  return;
+                }
+
+                // Nếu không phải mobile thì gọi hàm export
+                await handleExport();
+              }}
               fullWidth
               sx={{
                 maxWidth: { xs: 150, sm: 280 },
@@ -474,6 +481,7 @@ export default function ThongKeThang({ onBack }) {
               📥 Xuất Excel
             </Button>
           </Box>
+
         )}
 
         <Stack spacing={2} sx={{ mt: 4, alignItems: "center" }}>

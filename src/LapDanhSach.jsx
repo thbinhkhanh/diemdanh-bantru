@@ -12,6 +12,7 @@ import { useClassList } from './context/ClassListContext';
 import { useClassData } from './context/ClassDataContext';
 //import { query, where } from "firebase/firestore";
 import { enrichStudents } from "./pages/ThanhPhan/enrichStudents";
+import SaveIcon from "@mui/icons-material/Save";
 
 export default function LapDanhSach({ onBack }) {
   const { getClassList, setClassListForKhoi } = useClassList();
@@ -425,9 +426,10 @@ const handleClassChange = (event) => {
             color="primary"
             onClick={handleSave}
             disabled={isSaving}
-            sx={{ width: 160, fontWeight: 600, py: 1 }}
+            startIcon={<SaveIcon />}
+            sx={{ width: 160, fontWeight: 600, py: 1, whiteSpace: "nowrap" }}
           >
-            {isSaving ? '🔄 Lưu' : 'Lưu'}
+            {isSaving ? "Đang lưu..." : "Lưu"}
           </Button>
 
           {alertInfo.open && (

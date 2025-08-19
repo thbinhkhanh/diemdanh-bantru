@@ -12,6 +12,7 @@ import { useClassList } from "./context/ClassListContext";
 import { useClassData } from "./context/ClassDataContext";
 import { query, where } from "firebase/firestore";
 import { enrichStudents } from "./pages/ThanhPhan/enrichStudents";
+import UpdateIcon from "@mui/icons-material/Update";
 
 export default function CapNhatDS({ onBack }) {
   const [classList, setClassList] = useState([]);
@@ -431,8 +432,15 @@ export default function CapNhatDS({ onBack }) {
               </FormControl>
 
               <Stack spacing={2} alignItems="center">
-                <Button variant="contained" color="primary" onClick={handleUpdate} disabled={saving} sx={{ width: 160, fontWeight: 600, py: 1 }}>
-                  {saving ? "🔄 Cập nhật" : "Cập nhật"}
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleUpdate}
+                  disabled={saving}
+                  startIcon={<UpdateIcon />}
+                  sx={{ width: 160, fontWeight: 600, py: 1, whiteSpace: "nowrap" }}
+                >
+                  {saving ? "Đang cập nhật..." : "Cập nhật"}
                 </Button>
 
                 {snackbar.open && (

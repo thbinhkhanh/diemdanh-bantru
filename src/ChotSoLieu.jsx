@@ -13,6 +13,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import vi from "date-fns/locale/vi";
 import { db } from "./firebase";
 import { collection, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
+import UpdateIcon from "@mui/icons-material/Update";
 
 // === Tóm tắt theo dòng (Group / Lớp) ===
 function SummaryRow({ row, openGroups, setOpenGroups, summaryData }) {
@@ -233,15 +234,23 @@ export default function ChotSoLieu({ onBack }) {
             />
           </LocalizationProvider>
 
-          <Button
+          <Button 
             variant="contained"
             color="primary"
             onClick={handleUpdate}
             disabled={isLoading}
-            sx={{ fontSize: { xs: "0.75rem", sm: "1rem" }, minWidth: 120, height: 40, textTransform: "none" }}
+            startIcon={<UpdateIcon />}
+            sx={{ 
+              fontSize: { xs: "0.75rem", sm: "1rem" }, 
+              minWidth: 120, 
+              height: 40, 
+              textTransform: "none",
+              whiteSpace: "nowrap",
+            }}
           >
             CẬP NHẬT
           </Button>
+
         </Stack>
 
         {isLoading && (
