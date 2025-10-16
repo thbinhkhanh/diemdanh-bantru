@@ -29,6 +29,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
+import { isGioDiemDanh } from '../utils/isGioDiemDanh';
+
 
 export default function DanhSach() {
   const location = useLocation();
@@ -176,6 +178,10 @@ export default function DanhSach() {
   }, [classData, selectedClass]);
 
   const toggleDiemDanh = async (index) => {
+    if (!isGioDiemDanh()) {
+      alert("Thời gian điểm danh: 7:00 - 15:00");
+      return; // dừng nếu ngoài giờ
+    }
     const targetStudent = students[index];
     const updatedStudent = {
       ...targetStudent,
@@ -211,6 +217,11 @@ export default function DanhSach() {
   };
 
   const toggleRegister = async (index) => {
+    if (!isGioDiemDanh()) {
+      alert("Thời gian điểm danh: 7:00 - 15:00");
+      return; // dừng nếu ngoài giờ
+    }
+
     const updatedStudents = [...students];
     updatedStudents[index].registered = !updatedStudents[index].registered;
 
@@ -456,6 +467,11 @@ export default function DanhSach() {
                         <Checkbox
                           checked={checkAllBanTru}
                           onChange={async (e) => {
+                            if (!isGioDiemDanh()) {
+                              alert("Thời gian điểm danh: 7:00 - 15:00");
+                              return; // dừng nếu ngoài giờ
+                            }
+
                             const newVal = e.target.checked;
                             setCheckAllBanTru(newVal);
                             const updated = students.map(s =>
