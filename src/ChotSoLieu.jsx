@@ -96,9 +96,16 @@ export default function ChotSoLieu({ onBack }) {
       return;
     }
 
-    if (loginRole === "yte" && selected < today) {
+    {/*if (loginRole === "yte" && selected <= today) {
       setIsLoading(false);
       setErrorMessage("⚠️ Chỉ được cập nhật hôm nay hoặc tương lai!");
+      return;
+    }*/}
+
+    if (loginRole === "yte" && selected <= today) {
+      const formattedToday = today.toLocaleDateString("vi-VN"); 
+      setIsLoading(false);
+      setErrorMessage(`⚠️ Phải chọn ngày sau ngày ${formattedToday}!`);
       return;
     }
 
