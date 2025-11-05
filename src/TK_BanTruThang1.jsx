@@ -183,23 +183,12 @@ export default function ThongKeThang({ onBack }) {
           setFetchedClasses(prev => ({ ...prev, [selectedClass]: true }));
         }
 
-        // 📦 Lấy dữ liệu bán trú chỉ trong tháng được chọn
+        // 📦 Lấy dữ liệu bán trú
         const banTruSnap = await getDocs(collection(db, `BANTRU_${namHocValue}`));
-
-        const selectedMonth = selectedDate.getMonth() + 1;
-        const selectedYear = selectedDate.getFullYear();
-
-        const banTruData = banTruSnap.docs
-          .filter(doc => {
-            // Mỗi doc.id dạng yyyy-MM-dd
-            const [y, m] = doc.id.split("-").map(Number);
-            return y === selectedYear && m === selectedMonth;
-          })
-          .map(doc => ({
-            id: doc.id,
-            danhSachAn: doc.data().danhSachAn || []
-          }));
-
+        const banTruData = banTruSnap.docs.map(doc => ({
+          id: doc.id,
+          danhSachAn: doc.data().danhSachAn || []
+        }));
 
         // 📊 Xử lý và render
         processStudentData(rawData, banTruData, selectedClass, selectedDate);
@@ -404,7 +393,6 @@ export default function ThongKeThang({ onBack }) {
                       sx={{
                         width: 48,
                         px: 1,
-                        // bỏ sticky
                         backgroundColor:
                           student.dangKyBanTru === false
                             ? "#f0f0f0"
@@ -417,7 +405,8 @@ export default function ThongKeThang({ onBack }) {
                     >
                       {student.stt}
                     </TableCell>
-                    
+
+
                     <TableCell
                       sx={{
                         px: 1,
@@ -473,13 +462,11 @@ export default function ThongKeThang({ onBack }) {
                 // Kiểm tra thiết bị di động
                 const isMobile = /Mobi|Android/i.test(navigator.userAgent);
                 if (isMobile) {
-                  alert(
-                    "❌ Chức năng xuất Excel không khả dụng trên điện thoại.\nVui lòng sử dụng máy tính để xuất file."
-                  );
+                  alert("❌ Chức năng xuất Excel không khả dụng trên điện thoại.\nVui lòng sử dụng máy tính để xuất file.");
                   return;
                 }
 
-                // Gọi hàm export nếu không phải mobile
+                // Nếu không phải mobile thì gọi hàm export
                 await handleExport();
               }}
               fullWidth
