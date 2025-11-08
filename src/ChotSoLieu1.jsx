@@ -13,7 +13,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import vi from "date-fns/locale/vi";
 import { db } from "./firebase";
 import { collection, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
-import UpdateIcon from '@mui/icons-material/Update';
+import UpdateIcon from "@mui/icons-material/Update";
 
 // === Tóm tắt theo dòng (Group / Lớp) ===
 function SummaryRow({ row, openGroups, setOpenGroups, summaryData }) {
@@ -96,7 +96,7 @@ export default function ChotSoLieu({ onBack }) {
       return;
     }
 
-    {/*if (loginRole === "yte" && selected < today) {
+    {/*if (loginRole === "yte" && selected <= today) {
       setIsLoading(false);
       setErrorMessage("⚠️ Chỉ được cập nhật hôm nay hoặc tương lai!");
       return;
@@ -202,11 +202,6 @@ export default function ChotSoLieu({ onBack }) {
       await setDoc(attendanceRef, {
         ngay: formattedDate,
         danhSachAn: Array.from(currentSet),
-        siso: Object.fromEntries(
-          Object.values(lopMap).flatMap(group =>
-            Object.keys(group.children).map(lop => [lop, group.children[lop].siSo])
-          )
-        ),
       });
 
       //console.log("✅ Đã cập nhật:", formattedDate, "| Ghi mới:", newList.length, "| Xoá:", removed.length);
@@ -246,22 +241,23 @@ export default function ChotSoLieu({ onBack }) {
             />
           </LocalizationProvider>
 
-          <Button
+          <Button 
             variant="contained"
             color="primary"
             onClick={handleUpdate}
             disabled={isLoading}
-            startIcon={<UpdateIcon />} // thêm icon
+            startIcon={<UpdateIcon />}
             sx={{ 
               fontSize: { xs: "0.75rem", sm: "1rem" }, 
               minWidth: 120, 
               height: 40, 
               textTransform: "none",
-              whiteSpace: "nowrap" // chữ không xuống hàng
+              whiteSpace: "nowrap",
             }}
           >
             CẬP NHẬT
           </Button>
+
         </Stack>
 
         {isLoading && (
