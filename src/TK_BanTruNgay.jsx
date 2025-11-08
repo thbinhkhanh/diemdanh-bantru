@@ -213,7 +213,7 @@ export default function ThongKeTheoNgay({ onBack }) {
 
         const banTruData = banTruDoc.exists() ? banTruDoc.data().danhSachAn : [];
         const sisoData = banTruDoc.exists() ? banTruDoc.data().siso : null;
-
+        
         // 📚 Duyệt qua các lớp và lấy tất cả học sinh từ các field mảng
         const danhSachData = [];
 
